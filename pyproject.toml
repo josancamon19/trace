@@ -1,7 +1,7 @@
 [project]
-name = "web-envs"
+name = "trace"
 version = "0.1.0"
-description = "Web Environments Task Recorder"
+description = "TRACE: Trajectory Recording and Capture Environments"
 authors = [{ name = "Joan Cabezas", email = "joan.santiago.cabezas@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.13"
@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.scripts]
-web-envs = "main:cli"
+trace = "main:cli"
 # ./src/scripts/postprocessing/run.sh in a single one
 postprocess-toolcalls = "scripts.postprocessing._1_tool_calls_format:parse"
 postprocess-credentials = "scripts.postprocessing._2_credentials:main"
