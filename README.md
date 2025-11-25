@@ -1,4 +1,4 @@
-# Web Environments: Browser Agent Data Collection
+# TRACE: Trajectory Recording and Capture Environments
 
 > **Browser agents are hill climbing in the wrong direction.**
 
@@ -15,7 +15,7 @@ This repository contains the full collection → replay → evaluation stack des
 
 ## Table of Contents
 
-- [Web Environments: Browser Agent Data Collection](#web-environments-browser-agent-data-collection)
+- [TRACE: Trajectory Recording and Capture Environments](#trace-trajectory-recording-and-capture-environments)
   - [Highlights](#highlights)
   - [Table of Contents](#table-of-contents)
   - [Repository Map](#repository-map)
