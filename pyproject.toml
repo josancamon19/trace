@@ -1,6 +1,6 @@
 [project]
 name = "trace"
-version = "0.1.0"
+version = "0.1.1"
 description = "TRACE: Trajectory Recording and Capture Environments"
 authors = [{ name = "Joan Cabezas", email = "joan.santiago.cabezas@gmail.com" }]
 readme = "README.md"
