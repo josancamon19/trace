@@ -1696,7 +1696,7 @@ class TaskCollectorApp:
         try:
             # Create timestamped zip filename with username prefix
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            zip_filename = f"{username}-web-envs-data-{timestamp}.zip"
+            zip_filename = f"{username}-trace-data-{timestamp}.zip"
 
             progress_dialog.update_progress(
                 "Preparing zip file...", 5, "Counting files..."

@@ -1,4 +1,4 @@
-"""Peewee ORM models for the web-envs database."""
+"""Peewee ORM models for the trace database."""
 
 import json
 from typing import Any, Dict

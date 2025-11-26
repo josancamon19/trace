@@ -159,7 +159,7 @@ def _cli(
 
 
 def cli():
-    """CLI entry point for the web-envs command."""
+    """CLI entry point for the trace command."""
     typer.run(_cli)
 
 

@@ -38,16 +38,89 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
+def setup_replay_logger(
+    bundle_path: Path,
+    log_level: int = logging.DEBUG,
+    console_level: int = logging.INFO,
+) -> logging.Logger:
+    """
+    Set up a logger that writes to both console and a file in the capture directory.
+
+    Args:
+        bundle_path: Path to the capture bundle directory
+        log_level: Minimum log level for file logging (default: DEBUG)
+        console_level: Minimum log level for console output (default: INFO)
+
+    Returns:
+        Configured logger instance
+    """
+    # Create logs directory in the capture bundle
+    logs_dir = bundle_path / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create log file with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = logs_dir / f"{timestamp}.log"
+
+    # Create a unique logger for this bundle
+    bundle_logger = logging.getLogger(f"replay.{bundle_path.name}")
+    bundle_logger.setLevel(log_level)
+
+    # Remove existing handlers to avoid duplicates
+    bundle_logger.handlers.clear()
+
+    # File handler - detailed logging
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setLevel(log_level)
+    file_formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    file_handler.setFormatter(file_formatter)
+    bundle_logger.addHandler(file_handler)
+
+    # Console handler - less verbose
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(console_level)
+    console_formatter = logging.Formatter("[%(levelname)s] %(message)s")
+    console_handler.setFormatter(console_formatter)
+    bundle_logger.addHandler(console_handler)
+
+    # Don't propagate to root logger
+    bundle_logger.propagate = False
+
+    bundle_logger.info(f"Replay logger initialized. Log file: {log_file}")
+
+    return bundle_logger
+
+
 class ReplayBundle:
     """Replay previously captured browsing resources using HAR files."""
 
-    def __init__(self, bundle_path: Path, ignore_cache: bool = False):
+    def __init__(
+        self,
+        bundle_path: Path,
+        ignore_cache: bool = False,
+        verbose: bool = False,
+        log_level: int = logging.DEBUG,
+    ):
         bundle_path = bundle_path.expanduser().resolve()
         manifest_path = self._resolve_manifest(bundle_path)
 
         self.bundle_path = manifest_path.parent
         self.manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         self.ignore_cache = ignore_cache
+        self.verbose = verbose
+
+        # Setup bundle-specific logger if verbose mode is enabled
+        if verbose:
+            console_level = logging.DEBUG if verbose else logging.INFO
+            self._log = setup_replay_logger(
+                self.bundle_path,
+                log_level=log_level,
+                console_level=console_level,
+            )
+        else:
+            self._log = logger  # Use module-level logger
 
         if "environment" not in self.manifest or "task" not in self.manifest:
             raise ValueError("Invalid manifest: missing required fields")
@@ -60,11 +133,12 @@ class ReplayBundle:
         self._har_entries: List[HarEntry] = self._load_har_data()
         self._ignored_urls: List[str] = self._load_ignored_urls()  # ignored.json
 
-        logger.info(
+        self._log.info(
             "Loaded bundle %s with %d HAR entries",
             bundle_path,
             len(self._har_entries),
         )
+        self._log.debug("Ignored URL patterns: %s", self._ignored_urls)
 
     def guess_start_url(self) -> Optional[str]:
         """Extract the initial navigation URL from the manifest resources."""
@@ -84,7 +158,7 @@ class ReplayBundle:
             if self._should_ignore_url(request.url):
                 return
 
-            logger.warning(
+            self._log.warning(
                 "⚠️  Request FAILED (not in HAR): %s %s [%s]",
                 request.method,
                 request.url[:100] + "..." if len(request.url) > 100 else request.url,
@@ -98,16 +172,18 @@ class ReplayBundle:
             response = await request.response()
             if response:
                 if response.from_service_worker:
-                    logger.info("Request served from service worker: %s", request.url)
+                    self._log.debug(
+                        "Request served from service worker: %s", request.url
+                    )
             else:
-                logger.warning(
+                self._log.warning(
                     "⚠️  Request completed but no response: %s %s",
                     request.method,
                     request.url,
                 )
 
         # Set up event listeners for network monitoring
-        # context.on("request", lambda req: logger.info("→ Request: %s %s", req.method, req.url))
+        # context.on("request", lambda req: self._log.info("→ Request: %s %s", req.method, req.url))
         context.on("requestfailed", log_request_failed)
         context.on("requestfinished", log_request_finished)
 
@@ -175,7 +251,7 @@ class ReplayBundle:
             filepath.write_text("\n".join(content_lines))
 
         except Exception as exc:
-            logger.error(f"Failed to save request details: {exc}")
+            self._log.error(f"Failed to save request details: {exc}")
 
     def _load_har_data(self) -> List[HarEntry]:
         """Load HAR file data."""
@@ -241,8 +317,9 @@ class ReplayBundle:
             storage_state_path = self._storage_state_path()
             if storage_state_path:
                 context_config["storage_state"] = str(storage_state_path)
+                self._log.debug("Using storage state from: %s", storage_state_path)
             else:
-                logger.warning("Storage state file not found, using empty state")
+                self._log.warning("Storage state file not found, using empty state")
                 context_config["storage_state"] = "{}"
 
         return context_config
@@ -262,7 +339,7 @@ class ReplayBundle:
                 f"HAR file not found at {har_path}. Cannot replay without HAR file."
             )
 
-        logger.info("[HAR REPLAY] Using HAR replay from %s", har_path)
+        self._log.info("[HAR REPLAY] Using HAR replay from %s", har_path)
 
         async def custom_route_handler(route: Route, request: Request) -> None:
             await self.handle_requests_with_no_exact_match(
@@ -282,18 +359,43 @@ class ReplayBundle:
     ) -> None:
         # TODO: amazon trajectory fail after sign in? says "no internet" for a second, then refresh page works.
         if self._should_ignore_url(request.url):
+            self._log.debug(
+                "Ignoring URL (in ignore list): %s", self._get_shorter_url(request.url)
+            )
             await route.abort()
             return
+
+        self._log.debug(
+            "Processing request: %s %s [%s]",
+            request.method,
+            self._get_shorter_url(request.url),
+            request.resource_type,
+        )
 
         data = await self._obtain_request_candidates(
             request, route, allow_network_fallback
         )
         if not data:
+            self._log.debug(
+                "No candidates found for: %s", self._get_shorter_url(request.url)
+            )
             return
 
         candidates, method, metadata = data
+        self._log.debug(
+            "Found %d candidates for %s %s",
+            len(candidates),
+            method,
+            self._get_shorter_url(request.url),
+        )
+
         entry = await self._select_best_entry(request, candidates, method, metadata)
         if not entry:
+            self._log.warning(
+                "No suitable HAR entry selected for: %s %s",
+                method,
+                self._get_shorter_url(request.url),
+            )
             await route.abort()
             return
 
@@ -315,6 +417,9 @@ class ReplayBundle:
         candidate_entries = []
         metadata = {}
         for idx, entry in enumerate(self._har_entries):
+            if idx in self._consumed_har_indices:
+                continue
+
             entry_url_base = self._get_url_base(entry.request.url)
             if entry.request.method.upper() == method and entry_url_base == url_base:
                 candidate_entries.append(
@@ -358,18 +463,36 @@ class ReplayBundle:
             if any(
                 request.url.endswith(ignore_pattern) for ignore_pattern in ignore_log
             ):
+                self._log.debug(
+                    "Ignoring static asset (no exact match): %s",
+                    self._get_shorter_url(full_url),
+                )
                 await route.abort()
                 return
 
+            self._log.debug(
+                "No exact URL base match, trying char-based fallback for: %s %s",
+                method,
+                self._get_shorter_url(full_url),
+            )
             candidate_entries, metadata = self._fallback_candidates_char_based(
                 full_url, method, request
             )
             if not candidate_entries:
-                logger.warning(
-                    f"No matching HAR entry found for {method} {self._get_shorter_url(full_url)}, aborting",
+                self._log.warning(
+                    "No matching HAR entry found for %s %s (char-based fallback also failed)",
+                    method,
+                    self._get_shorter_url(full_url),
                 )
                 await (route.fallback() if allow_network_fallback else route.abort())
                 return
+            else:
+                self._log.debug(
+                    "Char-based fallback found %d candidates for: %s %s",
+                    len(candidate_entries),
+                    method,
+                    self._get_shorter_url(full_url),
+                )
 
         return candidate_entries, method, metadata
 
@@ -427,11 +550,13 @@ class ReplayBundle:
 
         # Find all HAR entries with the same domain and method
         same_domain_candidates: list[CandidateEntry] = []
-        har_entries = self._get_har_matches_by_host_and_method(full_url, method)
-        if not har_entries:
+        har_entries_with_idx = self._get_har_matches_by_host_and_method(
+            full_url, method
+        )
+        if not har_entries_with_idx:
             return same_domain_candidates, {}
 
-        for idx, entry in enumerate(har_entries):
+        for idx, entry in har_entries_with_idx:
             request_data = entry.request
 
             # URL matching (primary criteria) - normalize URL before counting chars
@@ -483,16 +608,22 @@ class ReplayBundle:
         )
 
         if perfect_match:
+            self._log.debug(
+                "Perfect char-based match found for: %s",
+                self._get_shorter_url(full_url),
+            )
             same_domain_candidates = [perfect_match]
         top_k = min(5, len(same_domain_candidates))
         top_candidates = same_domain_candidates[:top_k]
+
         # Log candidate information
-        # logger.info(
-        #     "Found %d candidates for %s %s",
-        #     len(same_domain_candidates),
-        #     method,
-        #     self._get_shorter_url(full_url),
-        # )
+        self._log.debug(
+            "Char-based matching: %d total candidates, selecting top %d for %s %s",
+            len(same_domain_candidates),
+            top_k,
+            method,
+            self._get_shorter_url(full_url),
+        )
 
         # Collect metadata for LM matching
         url_scores = []
@@ -501,8 +632,8 @@ class ReplayBundle:
         headers_scores = []
 
         for i, candidate in enumerate(top_candidates):
-            # candidate_url = candidate.entry.request.url
-            # candidate_shorter_url = self._get_shorter_url(candidate_url, max_length=80)
+            candidate_url = candidate.entry.request.url
+            candidate_shorter_url = self._get_shorter_url(candidate_url, max_length=80)
 
             url_score = candidate.metadata.match_score
             url_score_pct = (
@@ -516,15 +647,15 @@ class ReplayBundle:
             body_scores.append(body_score)
             headers_scores.append(headers_score)
 
-            # logger.info(
-            #     "  Candidate %d: %s (url_score=%.2f - %.2f  , body_score=%.2f, headers_score=%.2f)",
-            #     i,
-            #     candidate_shorter_url,
-            #     url_score,
-            #     url_score_pct,
-            #     body_score,
-            #     headers_score,
-            # )
+            self._log.debug(
+                "  Candidate %d: %s (url_score=%d / %.1f%%, body_score=%d, headers_score=%d)",
+                i,
+                candidate_shorter_url,
+                url_score,
+                url_score_pct,
+                body_score,
+                headers_score,
+            )
 
         metadata = {
             "scores_url": ", ".join(map(str, url_scores)),
@@ -544,7 +675,7 @@ class ReplayBundle:
             try:
                 return json.loads(cache_path.read_text(encoding="utf-8"))
             except Exception as exc:
-                logger.warning(f"Failed to load matches cache: {exc}")
+                self._log.warning(f"Failed to load matches cache: {exc}")
         return {}
 
     def _save_to_matches_cache(self, cache_key: str, har_index: int) -> None:
@@ -554,8 +685,11 @@ class ReplayBundle:
         cache[cache_key] = har_index
         try:
             cache_path.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+            self._log.debug(
+                "Cached match: %s -> HAR index %d", cache_key[:60], har_index
+            )
         except Exception as exc:
-            logger.warning(f"Failed to save to matches cache: {exc}")
+            self._log.warning(f"Failed to save to matches cache: {exc}")
 
     def _get_cache_key(self, method: str, url: str, post_data: Optional[str]) -> str:
         """Generate cache key in format: {method}-{URL}-{bodyhashshort}."""
@@ -581,6 +715,12 @@ class ReplayBundle:
         metadata: dict[str, Any],
     ) -> HarEntry:
         if len(candidates) == 1:
+            self._log.debug(
+                "Single candidate found for %s %s, using directly",
+                method,
+                self._get_shorter_url(request.url),
+            )
+            self._consumed_har_indices.add(candidates[0].idx)
             return candidates[0].entry
 
         shorter_url = self._get_shorter_url(request.url, normalize=True)
@@ -602,28 +742,68 @@ class ReplayBundle:
                 # Verify it's in our candidates
                 for entry in candidates:
                     if entry.entry is cached_entry or entry.entry == cached_entry:
-                        logger.info(f"Using cached match for {method} {shorter_url}")
+                        self._log.info(
+                            f"Using cached match for {method} {shorter_url} (HAR idx: {cached_har_index})"
+                        )
+                        self._consumed_har_indices.add(cached_har_index)
                         return entry.entry
+            self._log.debug(
+                "Cache miss (entry not in candidates) for %s %s",
+                method,
+                shorter_url,
+            )
 
-        logger.info(
-            f"Multiple HAR candidates ({len(candidates)}) found for {method} {shorter_url}, using LM matching",
+        self._log.info(
+            "Multiple HAR candidates (%d) for %s %s, using LM matching",
+            len(candidates),
+            method,
+            shorter_url,
         )
+        self._log.debug("LM matching metadata: %s", metadata)
 
         # Convert to LM match format for matching, but keep original candidates
         lm_match_candidates = [c.entry.to_lm_match_format() for c in candidates]
+
+        # Log each candidate being sent to LM matching
+        self._log.debug("LM matching candidates for %s %s:", method, shorter_url)
+        for i, candidate in enumerate(lm_match_candidates):
+            post_data_preview = ""
+            if candidate.get("postData") and candidate["postData"].get("text"):
+                post_text = candidate["postData"]["text"]
+                post_data_preview = (
+                    f" | postData: {post_text[:100]}..."
+                    if len(post_text) > 100
+                    else f" | postData: {post_text}"
+                )
+            self._log.debug(
+                "  [%d] %s %s (response: %s)%s",
+                i,
+                candidate["method"],
+                candidate["url"],
+                candidate.get("responseMimeType", "unknown"),
+                post_data_preview,
+            )
+
         idx = await retrieve_best_request_match(
             target_request=request,
             candidates=lm_match_candidates,
             metadata=metadata,
         )
 
-        # logger.info(f"Selected candidate index {idx} for {method} {shorter_url}")
         selected_candidate = candidates[idx]
+        self._log.info(
+            "LM selected candidate %d for %s %s -> %s",
+            idx,
+            method,
+            shorter_url,
+            self._get_shorter_url(selected_candidate.entry.request.url, max_length=60),
+        )
 
         # Save to cache
         har_index = self._find_entry_index_in_har(selected_candidate.entry)
         if har_index is not None:
             self._save_to_matches_cache(cache_key, har_index)
+            self._consumed_har_indices.add(har_index)
 
         return selected_candidate.entry
 
@@ -637,8 +817,29 @@ class ReplayBundle:
         response = entry.response
 
         status = response.status
-        headers = {h.name: h.value for h in response.headers}
+        headers = {}
+        headers_map = {}
+        for h in response.headers:
+            key = h.name
+            value = h.value
+            if key in headers_map:
+                headers_map[key].append(value)
+            else:
+                headers_map[key] = [value]
+
+        for key, values in headers_map.items():
+            if key.lower() == "set-cookie":
+                headers[key] = "\n".join(values)
+            else:
+                headers[key] = ",".join(values)
         content = response.content
+
+        self._log.debug(
+            "Fulfilling request %s with HAR entry (status=%d, content_type=%s)",
+            self._get_shorter_url(request.url, max_length=60),
+            status,
+            content.mimeType,
+        )
 
         # Handle different response body types
         body = None
@@ -651,7 +852,7 @@ class ReplayBundle:
                 try:
                     body = base64.b64decode(text)
                 except Exception as exc:
-                    logger.warning(
+                    self._log.warning(
                         "Failed to decode base64 body for %s: %s, falling back",
                         request.url,
                         exc,
@@ -673,7 +874,7 @@ class ReplayBundle:
 
     def _get_har_matches_by_host_and_method(
         self, full_url: str, method: str
-    ) -> List[HarEntry]:
+    ) -> List[tuple[int, HarEntry]]:
         matches = []
         for idx, entry in enumerate(self._har_entries):
             if idx in self._consumed_har_indices:
@@ -687,7 +888,7 @@ class ReplayBundle:
                 continue
 
             if urlparse(entry_url).netloc == urlparse(full_url).netloc:
-                matches.append(entry)
+                matches.append((idx, entry))
         return matches
 
     def _storage_state_path(self) -> Optional[Path]:
@@ -731,9 +932,14 @@ async def _cli(
     exit_on_completion: bool,
     include_storage_state: bool,
     ignore_cache: bool,
+    verbose: bool,
 ) -> None:
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
-    bundle = ReplayBundle(bundle_path, ignore_cache=ignore_cache)
+    bundle = ReplayBundle(
+        bundle_path,
+        ignore_cache=ignore_cache,
+        verbose=verbose,
+    )
 
     trajectory_steps = (
         StepManager.get_instance().get_steps_by_task_id(bundle.task_id)
@@ -798,6 +1004,12 @@ def main(
     ignore_cache: bool = typer.Option(
         False, help="Ignore cached request matches and use LM matching for all requests"
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose logging to file (saved in capture_dir/logs/timestamp.log)",
+    ),
 ):
     """Replay a captured browser bundle offline using HAR files."""
     asyncio.run(
@@ -810,6 +1022,7 @@ def main(
             exit_on_completion=exit_on_completion,
             include_storage_state=include_storage_state,
             ignore_cache=ignore_cache,
+            verbose=verbose,
         )
     )
 
