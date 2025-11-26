@@ -2,10 +2,6 @@
 
 > **Browser agents are hill climbing in the wrong direction.**
 
-<p align="center">
-  <img src="readme/figure_1.png" alt="TRACE Pipeline Architecture" width="800"/>
-</p>
-
 This repository contains the full collection → replay → evaluation stack described in the research notes here: https://joan.so/learning/ml/research/browser-automation/0+main. The goal is to make it trivial to capture thousands of long-horizon, economically valuable browser trajectories, replay them offline, and grade agents with granular checkpoints.
 
 ## Dataset
