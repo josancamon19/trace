@@ -21,7 +21,7 @@ from rich.progress import (
 console = Console()
 
 # Hardcoded configuration
-BUCKET_NAME = "mind2web-subset"
+BUCKET_NAME = "trace-environments"
 PROJECT_ID = "web-environments"
 DATA_DIR = Path("data")
 DESTINATION_PREFIX = "data/"
@@ -29,7 +29,9 @@ DESTINATION_PREFIX = "data/"
 
 def get_credentials() -> service_account.Credentials:
     """Get Google Cloud credentials from file."""
-    credentials_file = Path(__file__).parent.parent.parent / "google-credentials.json"
+    credentials_file = (
+        Path(__file__).parent.parent.parent.parent / "google-credentials.json"
+    )
 
     if not credentials_file.exists():
         raise ValueError(f"Credentials file not found: {credentials_file}")

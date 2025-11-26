@@ -15,12 +15,15 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from db.models import StepModel, RequestModel
 from db.database import Database
+from dotenv import load_dotenv
+
+load_dotenv()
 
 console = Console()
 
 # Hardcoded configuration
-REPO_ID = "josancamon/mind2web-subset-human"
-BUCKET_NAME = "mind2web-subset"
+REPO_ID = "josancamon/trace-environments"
+BUCKET_NAME = "trace-environments"
 OUTPUT_FILE = Path("data/tasks.parquet")
 DB_PATH = Path("data/tasks.db")
 JSONL_PATH = Path("data/tasks.jsonl")

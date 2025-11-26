@@ -22,3 +22,4 @@ desktop_app/embedded_credentials.py
 tmp/
 mlartifacts
 mlruns
+data-no-obscured

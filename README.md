@@ -2,7 +2,24 @@
 
 > **Browser agents are hill climbing in the wrong direction.**
 
+<p align="center">
+  <img src="readme/figure_1.png" alt="TRACE Pipeline Architecture" width="800"/>
+</p>
+
 This repository contains the full collection → replay → evaluation stack described in the research notes here: https://joan.so/learning/ml/research/browser-automation/0+main. The goal is to make it trivial to capture thousands of long-horizon, economically valuable browser trajectories, replay them offline, and grade agents with granular checkpoints.
+
+## Dataset
+
+A sample dataset of captured environments is available on Hugging Face:
+
+🤗 **[josancamon/trace-environments](https://huggingface.co/datasets/josancamon/trace-environments)** — 6 real-world tasks with full trajectories, DOM states, and replay bundles.
+
+Each task includes:
+- Golden human trajectory with step-by-step actions
+- DOM snapshots at each interaction point
+- HAR recordings for offline replay
+- Screenshots and video recordings
+- Checkpoint annotations for partial-credit evaluation
 
 ## Highlights
 
@@ -13,10 +30,53 @@ This repository contains the full collection → replay → evaluation stack des
 - Ship the workflow to non-technical collectors through a Tk desktop app or PyInstaller bundle.
 - Upload datasets to GCS / Hugging Face with ready-made scripts.
 
+## Example Tasks
+
+<details>
+<summary><strong>🏠 Airbnb — Find an apartment under $200 in Ho Chi Minh City</strong></summary>
+
+<p align="center">
+  <img src="readme/airbnb.png" alt="Airbnb task trajectory" width="900"/>
+</p>
+
+Multi-step booking flow: search location → select dates → apply price filter → browse results → select listing.
+</details>
+
+<details>
+<summary><strong>🛒 Amazon — Complete a checkout with saved payment method</strong></summary>
+
+<p align="center">
+  <img src="readme/amazon.png" alt="Amazon checkout flow" width="900"/>
+</p>
+
+Full e-commerce flow: login → navigate to cart → proceed to checkout → select payment → place order.
+</details>
+
+<details>
+<summary><strong>🐙 GitHub — Search and navigate repositories</strong></summary>
+
+<p align="center">
+  <img src="readme/github.png" alt="GitHub navigation task" width="900"/>
+</p>
+
+Developer workflow: login → search repositories → filter results → navigate to user profile → explore projects.
+</details>
+
+> 📹 **See the collection process in action:** [`readme/collection.mp4`](readme/collection.mp4)
+
+---
+
+> [!WARNING]
+> **🚧 Work in Progress** — This pipeline is functional but not battle-tested. Expect rough edges, undocumented edge cases, and breaking changes. If you run into issues, please [open an issue](../../issues) — your bug reports help shape the roadmap and will be documented as we go.
+
+---
+
 ## Table of Contents
 
 - [TRACE: Trajectory Recording and Capture Environments](#trace-trajectory-recording-and-capture-environments)
+  - [Dataset](#dataset)
   - [Highlights](#highlights)
+  - [Example Tasks](#example-tasks)
   - [Table of Contents](#table-of-contents)
   - [Repository Map](#repository-map)
   - [Getting Started](#getting-started)
@@ -63,7 +123,7 @@ web-environments/
 │   └── models.py                  # Shared data models
 ├── app/                           # Tk Task Collector + PyInstaller packaging
 ├── data/                          # Default recording/output root (configurable)
-├── data2/                         # Sample captures used for internal experiments
+├── readme/                        # Documentation assets (images, videos)
 ├── results/                       # Agent evaluation dumps (per run)
 ├── paper.md                       # Draft write-up / appendix
 ├── setup.sh                       # macOS bootstrap for collectors
@@ -164,7 +224,7 @@ data/
 └── debug/, steps/, ...
 ```
 
-`data2/` in the repo contains real examples referenced in `paper.md`. Point `TASK_COLLECTOR_DATA_ROOT` to that folder to experiment without collecting new data.
+The [TRACE Environments dataset](https://huggingface.co/datasets/josancamon/trace-environments) contains real examples with full capture bundles. Download and point `TASK_COLLECTOR_DATA_ROOT` to experiment without collecting new data.
 
 ## Post-Processing Pipeline
 
@@ -383,9 +443,9 @@ The desktop app exposes the same functionality through its UI for collectors.
 
 ## Resources
 
+- **TRACE Environments Dataset**: https://huggingface.co/datasets/josancamon/trace-environments
 - Research notes & build logs: https://joan.so/learning/ml/research/browser-automation/0+main
 - Benchmark tracker: https://web-evals.streamlit.app/
-- Mind2Web subset demo dataset: https://huggingface.co/datasets/josancamon/mind2web-subset-human
 - `paper.md` in this repo for the in-progress write-up and additional context.
 
 Questions or ideas? Open an issue or drop feedback in the discussions—the roadmap is driven by making browser agents genuinely useful, not just benchmark-good.
