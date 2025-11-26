@@ -132,6 +132,9 @@ class ReplayBundle:
         self._consumed_har_indices: Set[int] = set()
         self._har_entries: List[HarEntry] = self._load_har_data()
         self._ignored_urls: List[str] = self._load_ignored_urls()  # ignored.json
+        # self._ignored_urls: List[str] = []  # ignored.json
+
+        # TODO: is the index thing actually working? or is it fucking up smth
 
         self._log.info(
             "Loaded bundle %s with %d HAR entries",
@@ -143,6 +146,7 @@ class ReplayBundle:
     def guess_start_url(self) -> Optional[str]:
         """Extract the initial navigation URL from the manifest resources."""
         resources = self.manifest.get("resources", [])
+        # TODO: initial page a redirect? 307, might not work (?)
         for resource in resources:
             if (
                 resource.get("resource_type") == "document"
@@ -348,6 +352,7 @@ class ReplayBundle:
 
         await context.set_offline(True)
         await context.route("**/*", custom_route_handler)
+        # TODO: github.com -> sign in -> github.com, during replay auto har redirects to github.com before signed in page, gg.
         await context.route_from_har(str(har_path), not_found="fallback", update=False)
         await context.set_offline(True)
 

@@ -308,4 +308,8 @@ IGNORED_PATTERNS = [
     "mountain.com",
     "www.google.com/ccm/collect",
     "www.google.com/gmp/conversion",
+    "loglady.kiwi.com",
+    "siteperformancetest.net",
+    "tag-manager.kiwi.com",
+    "forter.com",
 ]
