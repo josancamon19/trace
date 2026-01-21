@@ -256,6 +256,8 @@ Capture-replay inverts the environment construction process. Rather than buildin
     \item \textbf{Replay:} A replay engine serves the captured assets locally, allowing agents to interact with a frozen snapshot of the original session without contacting the live web.
 \end{enumerate}
 
+This approach offers several structural advantages:
+
 \subsection{Advantage 1: Scalability}
 
 The most significant advantage of capture-replay is speed. \textbf{A single expert demonstration produces a complete environment in the time it takes to perform the task.}
@@ -322,10 +324,11 @@ In short, exploration constraints are solvable with more capture and determinist
 \paragraph{Our response:} These concerns are legitimate and require careful attention. We advocate for:
 
 \begin{enumerate}
-    \item \textbf{Credential extraction and substitution.} TRACE's pipeline separates credentials from captured content, allowing environments to be shared without exposing real passwords or tokens.
-    \item \textbf{PII redaction.} Post-processing should identify and redact personally identifiable information beyond credentials.
+    \item \textbf{Credential extraction and substitution.} TRACE's pipeline separates credentials from captured content, allowing environments to be shared without exposing real passwords or tokens. Evaluation harnesses inject credentials at runtime.
+    \item \textbf{PII redaction.} Post-processing should identify and redact personally identifiable information beyond credentials, including names, addresses, and payment details visible in page content.
     \item \textbf{Restricted distribution.} Not all captured environments should be publicly released. Research-use agreements, access controls, and clear licensing can balance openness with responsibility.
-    \item \textbf{Ethical guidelines.} The community should develop shared norms around what captures are appropriate. We propose guidelines in Appendix~\ref{app:ethics}.
+    \item \textbf{Ethical guidelines.} The community should develop shared norms around what captures are appropriate to create and share. We propose guidelines in Appendix~\ref{app:ethics} covering legal considerations, privacy, security, misuse potential, a three-tier consent framework, and domain-specific requirements.
+    \item \textbf{Terms of service consideration.} While ToS compliance is complex and varies by jurisdiction, researchers should consider whether their capture and use patterns align with reasonable interpretations of site policies.
 \end{enumerate}
 
 \textbf{Importantly, replica-based benchmarks face analogous concerns that are often overlooked.} WebArena clones the visual design and interaction patterns of Reddit, GitLab, and shopping sites. REAL builds ``deterministic simulations'' that reproduce real website behavior. These replicas copy copyrighted UI designs, reverse-engineer proprietary interaction models, and redistribute structural representations of commercial products. The legal status of benchmark environments is unsettled regardless of methodology. Capture-replay does not introduce novel legal risk categories; it inherits the same ambiguities that replica builders have navigated (often silently) for years. The difference is that capture-replay makes the provenance explicit, which may actually support clearer fair-use arguments for research purposes.
@@ -379,7 +382,7 @@ Building robust capture-replay infrastructure is genuinely hard. TRACE required 
 
 The existence of commercial providers does not invalidate capture-replay; it validates that capture-replay is the underlying methodology. What providers sell is the engineering labor to make it work reliably at scale, plus customization layers (parameterized variations, API integrations, guaranteed coverage). Our argument is that this engineering should be done once and shared openly, not replicated behind paywalls at every organization. TRACE is a step toward that shared infrastructure.
 
-\subsection{``Training requires more exploration than evaluation''}
+\subsection{``Capture-replay works for evaluation but not training''}
 
 \paragraph{The concern:} TRACE is currently validated for evaluation, not RL training. Training via reinforcement learning requires exploration, trial-and-error, and feedback from mistakes. Captured environments cannot provide negative rewards for failed actions or support recovery from off-trajectory states.
 
@@ -394,7 +397,9 @@ Consider what multi-trajectory capture-replay provides:
     \item \textbf{Record-on-miss expansion.} When agents hit uncaptured branches, the missing transitions can be recorded and added.
 \end{enumerate}
 
-The key question is data scale: how many trajectories are needed for effective RL? This is empirical. We also note that \textbf{evaluation is the more urgent bottleneck}---most academic groups cannot evaluate on realistic long-horizon tasks because the environments do not exist.
+The key question is data scale: how many trajectories are needed to provide sufficient exploration coverage for effective RL? This is an empirical question we have not yet answered. But the offline RL literature demonstrates that learning from fixed trajectory datasets is viable; capture-replay provides exactly such datasets grounded in real websites.
+
+We also note that \textbf{evaluation is the more urgent bottleneck.} Most academic groups cannot evaluate on realistic long-horizon tasks at all because the environments simply do not exist. Capture-replay addresses this evaluation crisis immediately, while training applications require further research and scale.
 
 \subsection{``The modern web actively resists being captured''}
 
@@ -403,26 +408,31 @@ The key question is data scale: how many trajectories are needed for effective R
 \paragraph{Our response:} This is true, and one reason TRACE required substantial engineering effort. We found that:
 
 \begin{enumerate}
-    \item \textbf{Many high-value sites are capturable} with sufficient engineering. Stealth browser configuration and realistic interaction timing enabled successful capture across all six demonstration sites.
-    \item \textbf{Anti-bot measures vary widely in sophistication.} The landscape is heterogeneous, not uniformly hostile.
-    \item \textbf{Replay is easier than capture.} Once traffic is captured, replay serves responses locally without triggering anti-bot measures.
+    \item \textbf{Many high-value sites are capturable} with sufficient engineering. Stealth browser configuration and realistic interaction timing enabled successful capture across all six demonstration sites, including major platforms with known anti-bot measures.
+    \item \textbf{Anti-bot measures vary widely in sophistication.} Some sites block naive automation immediately; others permit careful automated access. The landscape is heterogeneous, not uniformly hostile.
+    \item \textbf{Replay is often easier than capture.} Once traffic is captured, replay serves responses locally without contacting the live site. Anti-bot measures that trigger on request patterns do not apply to offline replay.
+    \item \textbf{This is an ongoing arms race.} We do not claim that all sites are capturable or that current techniques will work indefinitely. Anti-automation technology continues to evolve.
 \end{enumerate}
 
 We view anti-bot resistance as a practical obstacle that increases engineering cost, not a fundamental barrier. The question is whether the investment is lower than handcrafting replicas. We believe it is, especially when tooling is shared.
 
 \subsection{``Frozen captures do not generalize to live sites''}
 
-\paragraph{The concern:} A model evaluated on captures from January 2025 may fail on the same site in March 2025 when UI layouts change.
+\paragraph{The concern:} A model evaluated on captures from January 2025 may fail on the same site in March 2025 when UI layouts change, API endpoints shift, or authentication flows update. Performance on frozen captures may not predict performance on live sites.
 
-\paragraph{Our response:} This is a genuine limitation. Capture-replay trades temporal validity for reproducibility and cost efficiency. We offer three observations:
+\paragraph{Our response:} This is a genuine limitation that we do not attempt to dismiss.
+
+Capture-replay trades temporal validity for reproducibility and cost efficiency. A captured environment is a snapshot: it enables reproducible evaluation and apples-to-apples comparison between agents, but it does not guarantee that results transfer to the live web at a different point in time.
+
+We offer three observations:
 
 \begin{enumerate}
     \item \textbf{Replica-based benchmarks face the same problem.} WebArena's Reddit clone does not track Reddit's actual UI evolution.
     \item \textbf{Reproducibility has independent value.} Even if capture-to-live transfer is imperfect, comparing agents on identical environments enables scientific progress.
-    \item \textbf{Periodic recapture can track drift.} Unlike replicas requiring substantial rework, capture-replay environments can be refreshed by recording new sessions.
+    \item \textbf{Periodic recapture can track drift.} Unlike replicas that require substantial rework to update, capture-replay environments can be refreshed by simply recording new sessions. A quarterly recapture cadence could maintain reasonable temporal validity with modest ongoing effort.
 \end{enumerate}
 
-We call for empirical research measuring capture-to-live transfer.
+We call for empirical research measuring capture-to-live transfer. This is an open question that the community should investigate rather than assume answers to.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SECTION 5: CALL TO ACTION
@@ -501,7 +511,7 @@ Capture-replay replaces that bottleneck with fast, economically grounded environ
 \section{TRACE Implementation Details}
 \label{app:implementation}
 
-This appendix provides technical details on the TRACE implementation. The complete source code is available at a URL redacted for double-blind review.
+This appendix provides technical details on the TRACE implementation for researchers interested in understanding, extending, or reproducing the system. The complete source code is available at a URL redacted for double-blind review.
 
 \begin{figure}[h]
 \centering
@@ -524,11 +534,11 @@ TRACE's collection system is built on Playwright with a stealth-configured Chrom
 --enable-automation=false
 \end{lstlisting}
 
-The context is configured with realistic defaults: 1366$\times$768 viewport, \texttt{en-US} locale, \texttt{America/New\_York} timezone, and standard HTTP headers.
+The context is configured with realistic defaults: 1366$\times$768 viewport, \texttt{en-US} locale, \texttt{America/New\_York} timezone, and standard HTTP headers including \texttt{Accept-Language}, \texttt{Sec-Fetch-*} headers, and geolocation permissions.
 
 \paragraph{Event Recording.} The \texttt{Recorder} class captures events across multiple categories:
 
-\begin{table}[h]
+\begin{table*}[h]
 \caption{Event categories captured by TRACE.}
 \small
 \centering
@@ -536,14 +546,20 @@ The context is configured with realistic defaults: 1366$\times$768 viewport, \te
 \toprule
 \textbf{Category} & \textbf{Event Types} & \textbf{Trigger} \\
 \midrule
-State:Page & load, domcontentloaded & Page lifecycle \\
-State:Browser & navigated, back & Navigation \\
-Action:User & click, input, submit & User interactions \\
+State:Page & load, domcontentloaded, loaded & Page lifecycle events \\
+State:Browser & navigated, navigate\_start, back & Navigation events \\
+Action:User & click, input, contextmenu, submit & User interactions \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-For each triggering event, the recorder captures: (1) an accessibility snapshot (YAML-formatted tree of up to 400 interactive elements), (2) screenshots via Chrome DevTools Protocol, (3) full HAR network recording, and (4) browser state (cookies, localStorage, sessionStorage).
+For each triggering event, the recorder captures:
+\begin{enumerate}
+    \item \textbf{Accessibility Snapshot:} A YAML-formatted tree of up to 400 interactive elements extracted via Playwright's accessibility API, including element roles, names, ARIA attributes, and unique reference IDs.
+    \item \textbf{Screenshots:} Captured via Chrome DevTools Protocol (CDP) to avoid visual flicker, throttled to maximum one per 500ms to prevent duplicates.
+    \item \textbf{Network Traffic:} Full HAR (HTTP Archive) recording of all requests and responses, including headers, POST data, and response bodies (base64-encoded for binary content).
+    \item \textbf{Browser State:} Cookies, localStorage, sessionStorage, and IndexedDB snapshots captured at task completion.
+\end{enumerate}
 
 \begin{figure}[h]
 \centering
@@ -552,23 +568,83 @@ For each triggering event, the recorder captures: (1) an accessibility snapshot 
 \label{fig:collection}
 \end{figure}
 
-\paragraph{Data Storage.} Each collection produces: SQLite database with task metadata, per-step DOM snapshots, screenshots, video recordings, and a capture bundle containing manifest, HAR file, storage state, and cached resources.
+\paragraph{Data Storage.} Each collection produces:
+\begin{itemize}
+    \item SQLite database (\texttt{tasks.db}) with task metadata and step records
+    \item Per-step DOM snapshots in \texttt{data/doms/task\_\{id\}/step\_\{n\}.txt}
+    \item Screenshots in \texttt{data/screenshots/task\_\{id\}/*.png}
+    \item Video recordings in \texttt{data/videos/task\_\{id\}/*.webm}
+    \item Capture bundle in \texttt{data/captures/task\_\{id\}/} containing: \texttt{manifest.json} (task metadata and resource index), \texttt{recording.har} (complete HTTP archive), \texttt{storage/storage\_state.json} (browser storage snapshot), and \texttt{resources/} (cached static assets)
+\end{itemize}
 
 \subsection{Post-Processing Pipeline}
 
-The post-processing pipeline transforms raw captures into clean artifacts through four stages:
+The post-processing pipeline transforms raw captures into clean, shareable artifacts through four sequential stages.
 
-\paragraph{Stage 1: Tool-Call Parsing.} Raw browser events are converted to a standardized DSL (\texttt{go\_to}, \texttt{click}, \texttt{type}, \texttt{scroll}) with element information and navigation consequences.
+\paragraph{Stage 1: Tool-Call Parsing.} Raw browser events are converted to a standardized Domain-Specific Language (DSL):
 
-\paragraph{Stage 2: Credential Extraction.} An LLM-based extractor identifies credential-related interactions by analyzing tool calls and DOM context. Extracted credentials are stored separately, enabling credential substitution during sharing.
+\begin{table*}[h]
+\caption{Tool-call DSL mapping from browser events.}
+\small
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{DSL Action} & \textbf{Source Events} & \textbf{Parameters} \\
+\midrule
+\texttt{go\_to} & \texttt{state:browser:navigated} (initial) & \texttt{url} \\
+\texttt{click} & \texttt{action:user:click}, pointerdown/up & coordinates, element\_info, navigates\_to \\
+\texttt{type} & \texttt{action:user:input}, keydown & value, submit, element\_info \\
+\texttt{scroll} & \texttt{action:user:scroll} & x, y (absolute coordinates) \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\paragraph{Stage 3: Checkpoint Selection.} An LLM analyzes the full trajectory to identify 2--3 semantically meaningful intermediate states suitable for partial-credit evaluation.
+The parser handles event accumulation (e.g., multiple keydown events into a single \texttt{type} action), detects navigation consequences of clicks, and preserves DOM snapshot references for each action.
 
-\paragraph{Stage 4: Ignore-List Construction.} Network traffic is analyzed to identify hosts and URL patterns that can be safely omitted (analytics, ad networks, non-essential third-party services). This stage discards approximately 50\% of captured HTTP requests.
+\paragraph{Stage 2: Credential Extraction.} An LLM-based extractor identifies credential-related interactions by analyzing:
+
+\begin{itemize}
+    \item Tool calls with \texttt{type} actions on login-related elements
+    \item DOM context around input fields (labels, placeholders, ARIA descriptions)
+    \item Navigation patterns indicating authentication flows
+\end{itemize}
+
+Extracted credentials are stored in a structured format:
+
+\begin{lstlisting}
+{
+  "website": "amazon.com",
+  "fields": [
+    {"field_name": "email", "field_value": "user@example.com"},
+    {"field_name": "password", "field_value": "[REDACTED]"}
+  ],
+  "tool_call_ids": [3, 4]
+}
+\end{lstlisting}
+
+This separation enables credential substitution during sharing while preserving the trajectory structure.
+
+\paragraph{Stage 3: Checkpoint Selection.} An LLM analyzes the full trajectory to identify 2--3 semantically meaningful intermediate states suitable for partial-credit evaluation. The prompt instructs the model to consider:
+
+\begin{itemize}
+    \item Key actions that represent partial task completion
+    \item Navigation events to significant pages (results, confirmation screens)
+    \item Timestamp gaps indicating complex reasoning or significant progress
+\end{itemize}
+
+\paragraph{Stage 4: Ignore-List Construction.} Network traffic is analyzed to identify hosts and URL patterns that can be safely omitted during replay:
+
+\begin{itemize}
+    \item Analytics and tracking domains (Google Analytics, Facebook Pixel, etc.)
+    \item Ad networks and retargeting services
+    \item Non-essential third-party services (chat widgets, A/B testing)
+\end{itemize}
+
+In practice, this stage discards approximately 50\% of captured HTTP requests. Modern websites include substantial tracking and analytics traffic that is entirely unnecessary for core functionality. The resulting \texttt{ignored.json} file lists URL patterns to abort during replay, significantly reducing noise and improving determinism.
 
 \subsection{Replay Engine}
 
-The replay module reconstructs captured sessions through multi-stage request matching:
+The replay module reconstructs captured sessions for offline evaluation through a multi-stage request matching system.
 
 \begin{figure}[h]
 \centering
@@ -577,20 +653,41 @@ The replay module reconstructs captured sessions through multi-stage request mat
 \label{fig:replay}
 \end{figure}
 
-\paragraph{Request Routing.} When the browser issues a request during replay: (1) URLs matching ignore patterns are aborted; (2) exact matches on method and URL base are used directly; (3) character-frequency similarity scores handle dynamic query parameters; (4) LLM disambiguation resolves remaining ambiguities.
+\paragraph{Request Routing.} When the browser issues a request during replay:
+\begin{enumerate}
+    \item \textbf{Ignore Check:} URLs matching patterns in \texttt{ignored.json} are immediately aborted.
+    \item \textbf{Exact Match:} The HAR file is searched for entries with identical method and URL base (scheme + host + path). If a single match exists, it is used directly.
+    \item \textbf{Character-Based Matching:} For URLs with dynamic query parameters, a character-frequency similarity score is computed:
+    \begin{equation*}
+    \text{score} = \sum_c \min(\text{target\_char\_count}[c], \text{candidate\_char\_count}[c])
+    \end{equation*}
+    URLs are normalized before matching (removing timestamp parameters, sorting query strings). Candidates with >90\% character overlap and matching all target characters are treated as perfect matches.
+    \item \textbf{LLM Disambiguation:} When multiple candidates remain after character-based filtering, the top-5 candidates (ranked by match score) are sent to an LLM for selection. The prompt provides: target request details (method, normalized URL, headers, POST data), candidate request details with response MIME types, and character match scores as additional context.
+\end{enumerate}
 
-\paragraph{Response Fulfillment.} Once a HAR entry is selected, response headers are extracted, bodies decoded, and the request fulfilled via Playwright's route API.
+\paragraph{Response Fulfillment.} Once a HAR entry is selected: (1) response headers are extracted, with \texttt{Set-Cookie} headers combined with newlines (per HTTP spec); (2) response bodies are decoded (base64 for binary content, UTF-8 for text); (3) the request is fulfilled via Playwright's route API with appropriate content-type headers.
 
-\paragraph{Caching.} LLM match decisions are cached for determinism. The \texttt{--ignore-cache} flag forces fresh matching for debugging.
+\paragraph{Caching.} LLM match decisions are cached in \texttt{matches.json} keyed by \texttt{\{method\}-\{url\}-\{body\_hash\_16\}}. Subsequent replays reuse cached decisions for determinism. The \texttt{--ignore-cache} flag forces fresh LLM matching for debugging.
+
+\paragraph{Storage State.} Optional \texttt{--include-storage-state} flag restores cookies and localStorage from the capture, enabling replay of authenticated sessions.
 
 \subsection{Evaluation Harness}
 
-TRACE includes a minimal evaluation runner: (1) load capture bundle and configure HAR replay routing; (2) initialize agent with task description; (3) compare agent trajectory against human checkpoints using semantic similarity; (4) assess binary success against expected outcome.
+TRACE includes a minimal evaluation runner demonstrating integration with browser-use agents:
+
+\begin{enumerate}
+    \item \textbf{Environment Launch:} Load capture bundle, configure HAR replay routing, open starting URL.
+    \item \textbf{Agent Execution:} Initialize browser-use agent with task description and target website. Agent interacts with the replayed environment through standard browser automation APIs.
+    \item \textbf{Checkpoint Evaluation:} Compare agent's trajectory against human checkpoints using semantic similarity. An LLM judge determines whether the agent reached equivalent states, allowing alternative valid paths.
+    \item \textbf{Success Determination:} Binary success is assessed by comparing the agent's final state against the task's expected outcome (for action tasks) or answer (for information retrieval tasks).
+\end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Captured Environment Statistics}
 \label{app:statistics}
+
+This appendix provides detailed statistics on the six demonstration environments released with TRACE. All environments are available at a URL redacted for double-blind review. Statistics are reproduced from our proof-of-concept dataset collection.
 
 \begin{table*}[t]
 \caption{Complete statistics for the six captured demonstration environments.}
@@ -698,20 +795,11 @@ Capture-replay has dual-use risks. Environments could train agents for automated
 
 \subsection{Three-Tier Consent Framework}
 
-\begin{table}[h]
-\caption{Proposed consent framework for captured environments.}
-\small
-\centering
-\begin{tabular}{@{}p{1.2cm}p{2cm}p{2cm}p{2cm}@{}}
-\toprule
-\textbf{Tier} & \textbf{Scope} & \textbf{Requirements} & \textbf{Distribution} \\
-\midrule
-1: Self & Own accounts & Consent, cred extraction & Public after processing \\
-2: Auth & Others' demos & IRB, written consent, PII redaction & Research license \\
-3: Sensitive & Healthcare, finance, govt & Domain compliance, legal review & Institutional agreements \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{enumerate}
+    \item \textbf{Tier 1: Self-demo.} Scope: own accounts. Requirements: consent, credential extraction. Distribution: public after processing.
+    \item \textbf{Tier 2: Authorized.} Scope: others' demos, research accounts. Requirements: IRB review, written consent, PII redaction. Distribution: research-use license.
+    \item \textbf{Tier 3: Sensitive.} Scope: healthcare, finance, government. Requirements: domain compliance (HIPAA, PCI-DSS), legal review. Distribution: institutional agreements.
+\end{enumerate}
 
 \subsection{Domain-Specific Notes}
 
