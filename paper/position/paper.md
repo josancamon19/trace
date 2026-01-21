@@ -12,7 +12,7 @@
 
 > *"Web agents are hill climbing in the wrong direction."*
 
-The past two years have witnessed remarkable progress in language-model agents for web and computer use. Systems built on frontier models can now navigate complex websites, fill forms, execute multi-step workflows, and retrieve information across diverse domains [1-11]. Benchmarks such as Mind2Web, WebArena, REAL, OSWorld, BEARCUBS, BrowseComp, and TheAgentCompany have provided standardized evaluation environments that enable reproducible comparisons and have driven rapid capability improvements [1-10].
+The past two years have witnessed remarkable progress in language-model agents for web and computer use. Systems built on frontier models can now navigate complex websites, fill forms, execute multi-step workflows, and retrieve information across diverse domains [1-11]. Benchmarks such as Mind2Web, WebArena, WebVoyager, WorkArena, REAL, OSWorld, BEARCUBS, BrowseComp, and TheAgentCompany have provided standardized evaluation environments that enable reproducible comparisons and have driven rapid capability improvements [1-10,24,25].
 
 Yet beneath this progress lies a troubling structural problem: **the environments we use to train and evaluate web agents bear little resemblance to the tasks that would make these agents economically valuable.** The majority of benchmark tasks fall into categories we characterize as "deep research" (trivia-style multi-hop questions that rarely require browser automation), "information seeking" (simple lookups that could often be answered by a search engine), or "atomic execution" (short, isolated actions like clicking a button or filling a single field). Long-horizon, multi-step workflows that mirror real paid work (booking complex travel itineraries, configuring enterprise SaaS tools, executing financial transactions, managing e-commerce operations) remain dramatically underrepresented. More importantly, most benchmarks are not collected from people doing paid work; they are task templates designed for evaluability rather than traces of real economic activity.
 
@@ -62,26 +62,27 @@ The remainder of this paper develops this argument in detail:
 
 ### 2.1 A Taxonomy of Browser Agent Benchmarks
 
-To understand the current state of web agent environments, we systematically analyzed ten prominent benchmarks across three dimensions: **task category** (what kind of work the agent performs), **task horizon** (how many steps or how much time tasks typically require), and **economic grounding** (whether tasks resemble work someone would pay to have completed).
+To understand the current state of web agent environments, we systematically analyzed eleven prominent benchmarks across three dimensions: **task category** (what kind of work the agent performs), **task horizon** (how many steps or how much time tasks typically require), and **economic grounding** (whether tasks resemble work someone would pay to have completed).
 
-| Benchmark       | Category                 | Horizon      | Economic Grounding | Key Limitation                                                    |
-| --------------- | ------------------------ | ------------ | ------------------ | ----------------------------------------------------------------- |
-| GAIA            | Deep research            | Medium       | Low                | Trivia-style multi-hop QA; browser often unnecessary              |
-| BEARCUBS        | Deep research            | Short        | Low                | Complex search questions requiring manual evaluation              |
-| BrowseComp      | Deep research            | Long         | Low                | Scavenger hunts emphasizing reasoning over realistic work         |
-| Mind2Web 2      | Deep research            | Long         | Low                | Multi-hop QA with LM-generated evaluation                         |
-| Mind2Web        | Info seeking / Execution | Short-Medium | Medium             | Mix of IR and simple actions; no golden trajectories              |
-| WebVoyager      | Info seeking             | Short        | Low                | Labeled as "long-horizon" but tasks are often atomic              |
-| WebArena        | Execution                | Short-Medium | Medium             | Action-based on cloned sites; limited multi-step flows            |
-| REAL            | Execution                | Short-Medium | Medium-High        | Deterministic replicas; ~50 tasks with clear economic value       |
-| OSWorld         | Execution                | Short-Medium | Medium             | Desktop apps; useful but small and requires heavy state machinery |
-| TheAgentCompany | Execution                | Medium       | High               | Realistic workflows but extraordinarily expensive to build        |
+| Benchmark          | Category                 | Horizon      | Economic Grounding | Key Limitation                                                     |
+| ------------------ | ------------------------ | ------------ | ------------------ | ------------------------------------------------------------------ |
+| GAIA [4]           | Deep research            | Medium       | Low                | General-assistant QA; many tasks are not web-specific or action-based |
+| BEARCUBS [1]       | Info seeking             | Short-Medium | Low                | QA-only; no state-changing actions; small task set (111)           |
+| BrowseComp [2]     | Deep research            | Long         | Low                | QA-only; short answers; open-web drift                             |
+| Mind2Web 2 [6]     | Deep research            | Long         | Low                | Agentic search QA; LLM-as-judge evaluation                         |
+| Mind2Web [5]       | Info seeking / Execution | Short-Medium | Medium             | Live-web trajectories; action-matching evaluation; no deterministic env |
+| WebVoyager [24]    | Info seeking / Execution | Medium       | Low-Medium         | Live websites; GPT-4V-based eval; limited domain coverage          |
+| WebArena [7]       | Execution                | Medium       | Medium             | Replica sites; limited domains; high construction cost             |
+| REAL [8]           | Execution                | Short-Medium | Medium-High        | Deterministic replicas; limited task count and domains             |
+| OSWorld [9]        | Execution                | Short-Medium | Medium             | Desktop-focused; heavy state setup and evaluators                  |
+| WorkArena [25]     | Execution                | Short-Medium | High               | Single platform (ServiceNow); small task set (33); remote-hosted   |
+| TheAgentCompany [10] | Execution             | Medium       | High               | Realistic workflows but extraordinarily expensive to build         |
 
-**Table 1:** Taxonomy of existing web agent benchmarks. We observe a clear pattern: benchmarks with high economic grounding (TheAgentCompany, parts of REAL) require the most construction effort, while scalable benchmarks (Mind2Web, BrowseComp) tend toward tasks with limited economic value.
+**Table 1:** Taxonomy of existing web agent benchmarks. We observe a clear pattern: benchmarks with high economic grounding (TheAgentCompany, WorkArena, parts of REAL) require the most construction effort, while scalable benchmarks (Mind2Web, BrowseComp) tend toward tasks with limited economic value.
 
 Several patterns emerge from this analysis:
 
-**Pattern 1: The effort-value tradeoff.** Benchmarks that emphasize economically realistic tasks (TheAgentCompany, REAL) require dramatically more construction effort than those emphasizing information retrieval or synthetic reasoning (BrowseComp, GAIA). This is not coincidental. Realistic execution tasks require functional environments with state that actually changes, authentication flows that work, and evaluation criteria that verify real outcomes.
+**Pattern 1: The effort-value tradeoff.** Benchmarks that emphasize economically realistic tasks (TheAgentCompany, WorkArena, REAL) require dramatically more construction effort than those emphasizing information retrieval or synthetic reasoning (BrowseComp, GAIA). This is not coincidental. Realistic execution tasks require functional environments with state that actually changes, authentication flows that work, and evaluation criteria that verify real outcomes.
 
 **Pattern 2: Horizon compression.** Even benchmarks labeled as "long-horizon" often consist of relatively short interaction sequences when measured in actual steps. Mind2Web 2 explicitly analyzed this phenomenon, finding that most existing benchmarks concentrate on short-horizon tasks [6]. Long-horizon, multi-session workflows that characterize real knowledge work remain rare.
 
@@ -89,7 +90,7 @@ Several patterns emerge from this analysis:
 
 **Pattern 3: Domain concentration.** Existing benchmarks heavily favor a small set of domains: e-commerce, content management, developer tools, and travel booking appear repeatedly, while vast categories of economically important web work (financial services, healthcare portals, government services, enterprise SaaS, professional services) remain largely uncovered.
 
-**Pattern 4: The live-web evaluation problem.** Benchmarks that evaluate on live websites (Mind2Web, BrowseComp, BEARCUBS) face continuous validity challenges as the web changes. Those that avoid this through replicas (WebArena, REAL) gain reproducibility but lose coverage and realism.
+**Pattern 4: The live-web evaluation problem.** Benchmarks that evaluate on live websites (Mind2Web, BrowseComp, BEARCUBS, WebVoyager) face continuous validity challenges as the web changes. Those that avoid this through replicas (WebArena, REAL) gain reproducibility but lose coverage and realism.
 
 ### 2.2 The Cost Structure of Environment Construction
 
@@ -143,7 +144,7 @@ This approach offers several structural advantages:
 
 The most significant advantage of capture-replay is speed. **A single expert demonstration produces a complete environment in the time it takes to perform the task.**
 
-Our proof-of-concept implementation (TRACE) captured six diverse tasks across GitHub, Amazon, Airbnb, Kayak, Uniqlo, and Ultimate Guitar in under 40 minutes of total expert time. Each capture produced hundreds of HTTP responses, dozens of DOM snapshots, and complete interaction logs. These are artifacts that would require days or weeks to handcraft.
+Our proof-of-concept implementation (TRACE) captured six diverse tasks across GitHub, Amazon, Airbnb, Kayak, Uniqlo, and Ultimate Guitar in about 40 minutes of total collection time including retries (about 6:40 per task). Each capture produced hundreds of HTTP responses, dozens of DOM snapshots, and complete interaction logs. These are artifacts that would require days or weeks to handcraft.
 
 This changes the economics of environment construction fundamentally. At capture-replay speeds:
 
@@ -163,7 +164,7 @@ Capture-replay enables a different paradigm: **find people doing economically va
 
 Open-source capture-replay tooling can break the concentration of environment access. Any researcher with a browser can record environments from any website they can access. No proprietary infrastructure required, no licensing fees, no vendor lock-in.
 
-This is not merely theoretical. TRACE is released as open-source software (https://github.com/josancamon19/trace), and its captured environments are published on Hugging Face (https://huggingface.co/datasets/josancamon/trace-environments). The tooling is designed for extensibility: researchers can adapt it to their domains, contribute improvements, and build shared infrastructure without depending on commercial providers.
+This is not merely theoretical. TRACE is released as open-source software (URL redacted for double-blind review), and its captured environments are published on a public dataset host (URL redacted for double-blind review). The tooling is designed for extensibility: researchers can adapt it to their domains, contribute improvements, and build shared infrastructure without depending on commercial providers.
 
 ### 3.5 TRACE: A Proof of Concept
 
@@ -199,7 +200,7 @@ To demonstrate that capture-replay is technically feasible on modern production 
 - **Kayak** (unauthenticated): Search flights, apply filters, compare results
 - **Airbnb** (unauthenticated): Search listings, apply filters, view details
 
-These environments demonstrate feasibility across diverse sites including credentialed flows with sensitive interactions (payments, personal data). Each replays fully offline with deterministic behavior across runs.
+These environments demonstrate feasibility across diverse sites including credentialed flows with sensitive interactions (payments, personal data). Each replays fully offline with high determinism across runs when deterministic matching and cached decisions are used.
 
 We emphasize that this dataset is intentionally small. Six tasks is insufficient for benchmark-scale evaluation. TRACE is offered as proof of concept and infrastructure contribution, not as a complete benchmark. The point is demonstrating that capture-replay works, not claiming comprehensive coverage.
 
@@ -253,7 +254,7 @@ We note that replica-based benchmarks face analogous concerns. They also copy we
 
 However, we note:
 
-1. **The time investment was minimal.** Six environments in ~40 minutes suggests that hundreds are achievable with modest effort.
+1. **The time investment was minimal.** Six environments in about 40 minutes of total collection time (about 6:40 per task) suggests that hundreds are achievable with modest effort.
 
 2. **Diversity was intentional.** We selected sites spanning e-commerce, social coding, travel, retail, and entertainment to demonstrate breadth.
 
@@ -340,7 +341,7 @@ Capture-replay replaces that bottleneck with fast, economically grounded environ
 
 [1] Song, Y., et al. "BEARCUBS: A Benchmark for Computer-Using Web Agents." arXiv:2503.07919, 2025.
 
-[2] Wei, J., et al. "BrowseComp: A Simple Yet Challenging Benchmark for Browsing Agents." OpenAI, 2025.
+[2] Wei, J., et al. "BrowseComp: A Simple Yet Challenging Benchmark for Browsing Agents." arXiv:2504.12516, 2025.
 
 [3] Murty, S., et al. "NNetNav: Unsupervised Learning of Browser Agents Through Environment Interaction in the Wild." arXiv:2410.02907, 2024.
 
@@ -356,7 +357,7 @@ Capture-replay replaces that bottleneck with fast, economically grounded environ
 
 [9] Xie, T., et al. "OSWorld: Benchmarking Multimodal Agents for Open-Ended Tasks in Real Computer Environments." arXiv:2404.07972, 2024.
 
-[10] WebArena Team. "TheAgentCompany: A Benchmark of Consequential Tasks for Web and Terminal Agents." arXiv:2412.14161, 2024.
+[10] Xu, F.F., et al. "TheAgentCompany: Benchmarking LLM Agents on Consequential Real World Tasks." arXiv:2412.14161, 2024.
 
 [11] Feng, Y., et al. "BrowserAgent: Grounded Test-Time Adaptation for Web Agents." arXiv:2510.10666v2, 2025.
 
@@ -384,11 +385,15 @@ Capture-replay replaces that bottleneck with fast, economically grounded environ
 
 [23] METR. "Measuring AI Ability to Complete Long Tasks." https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/
 
+[24] He, H., et al. "WebVoyager: Building an End-to-End Web Agent with Large Multimodal Models." arXiv:2401.13919, 2024.
+
+[25] Drouin, A., et al. "WorkArena: How Capable Are Web Agents at Solving Common Knowledge Work Tasks?" arXiv:2403.07718, 2024.
+
 ---
 
 ## Appendix A: TRACE Implementation Details
 
-This appendix provides technical details on the TRACE implementation for researchers interested in understanding, extending, or reproducing the system. The complete source code is available at https://github.com/josancamon19/trace.
+This appendix provides technical details on the TRACE implementation for researchers interested in understanding, extending, or reproducing the system. The complete source code is available at a URL redacted for double-blind review.
 
 ![TRACE pipeline: collection, post-processing, offline replay, and agent evaluation.](../figures/01.png)
 **Figure A1:** TRACE pipeline: collection, post-processing, offline replay, and agent evaluation.
@@ -545,7 +550,7 @@ TRACE includes a minimal evaluation runner demonstrating integration with browse
 
 ## Appendix B: Captured Environment Statistics
 
-This appendix provides detailed statistics on the six demonstration environments released with TRACE. All environments are available on Hugging Face at https://huggingface.co/datasets/josancamon/trace-environments. Statistics are reproduced from our proof-of-concept dataset collection.
+This appendix provides detailed statistics on the six demonstration environments released with TRACE. All environments are available at a URL redacted for double-blind review. Statistics are reproduced from our proof-of-concept dataset collection.
 
 ### B.1 Complete Dataset Statistics
 
@@ -578,7 +583,7 @@ The following table consolidates all measured statistics from the six captured e
 - Total DOM snapshots: 160
 - Total storage: 663 MB
 
-**Note on collection time:** The Time(s) column reflects the duration of a successful task execution. Actual collection effort is approximately 5 minutes per task when accounting for retries due to collection errors, website issues, or mistakes during demonstration. The six-task dataset required roughly 30 minutes of total collection effort.
+**Note on collection time:** The Time(s) column reflects the duration of a successful task execution. Actual collection effort is approximately 6:40 per task when accounting for retries due to collection errors, website issues, or mistakes during demonstration. The six-task dataset required about 40 minutes of total collection time.
 
 ### B.2 Task Descriptions
 
@@ -612,7 +617,7 @@ Several patterns emerge from the collected data:
 
 4. **DOM snapshot frequency varies by interaction pattern.** Ultimate Guitar (46 snapshots) and GitHub (35 snapshots) had higher snapshot counts due to more frequent triggering events (clicks, form submissions).
 
-Even accounting for retries and mistakes, total collection effort for all six environments was approximately 30 minutes (~5 minutes per task), demonstrating the efficiency of capture-replay compared to handcrafted environment construction which can require hours or days per task.
+Even accounting for retries and mistakes, total collection effort for all six environments was approximately 40 minutes (~6:40 per task), demonstrating the efficiency of capture-replay compared to handcrafted environment construction which can require hours or days per task.
 
 ---
 
