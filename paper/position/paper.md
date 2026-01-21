@@ -4,7 +4,7 @@
 
 ## Abstract
 
-**This is a position paper.** We argue that browser agent research should shift significant effort from handcrafted website replicas toward capture-replay infrastructure that turns real expert demonstrations into reusable, offline environments. Current benchmarks require heavy engineering yet cover a narrow, economically unrepresentative slice of web work, while proprietary environment providers concentrate access. Capture-replay offers a scalable alternative: a single expert session can produce a complete environment in minutes, grounded in real workflows and shareable via open-source tooling. We analyze the benchmark landscape and its cost structure, and present TRACE, a proof-of-concept pipeline that works on production sites including authenticated flows. We discuss limitations (reduced exploration, legal and ethical constraints, and replay determinism) and argue they are tractable with hybrid approaches and community norms. We conclude with a call to action to invest in capture-replay alongside replicas and to document environment construction costs to enable fair methodological comparisons.
+**This is a position paper.** We argue that browser agent research should replace handcrafted website replicas with capture-replay infrastructure that turns real expert demonstrations into reusable, offline environments. Current benchmarks require heavy engineering yet cover a narrow, economically unrepresentative slice of web work, while proprietary environment providers concentrate access. Capture-replay offers a scalable alternative: a single expert session can produce a complete environment in minutes, grounded in real workflows and shareable via open-source tooling. We analyze the benchmark landscape and its cost structure, and present TRACE, a proof-of-concept pipeline that works on production sites including authenticated flows. We discuss limitations (reduced exploration, legal and ethical constraints, and replay determinism) and argue they are tractable through additional collection and community norms. We conclude with a call to action to redirect investment away from handcrafted replicas and toward capture-replay, and to document environment construction costs to enable fair methodological comparisons.
 
 ---
 
@@ -31,9 +31,11 @@ TheAgentCompany's transparent reporting is particularly illuminating: building 1
 
 **The implication is stark:** at current construction costs, the academic community cannot build environments at the scale needed to cover the long tail of economically valuable browser tasks. We can produce hundreds of tasks, perhaps low thousands with extraordinary effort, but the space of valuable web workflows spans millions of distinct patterns across hundreds of thousands of websites.
 
+These costs are not only financial. They consume scarce research time that could otherwise go toward agent design, failure analysis, and iteration. And because realistic environment construction is so expensive, evaluation suites remain small and often collapse to binary success metrics, which limits error analysis and makes it difficult to diagnose where, why, and how models fail.
+
 This gap has not gone unnoticed by industry. A growing ecosystem of startups now builds browser environments for AI agent training [15-18]. The business models vary: some host live environments, others deliver static datasets, and some offer both. What they share is a focus on creating replica websites and simulated workflows where AI agents can learn through reinforcement learning without triggering blocking mechanisms on real sites. By some estimates, more than a dozen companies now operate in this space, with individual contracts reaching into the millions of dollars and per-task costs reportedly ranging from $3,000 to $50,000 depending on complexity and fidelity. Leading AI labs treat these environments as core training infrastructure. **Browser environments have become a strategic asset: valuable, proprietary, and concentrated in the hands of well-funded organizations.**
 
-We believe this trajectory is problematic for the field. When the ability to train and iterate on realistic browser agents depends on access to expensive proprietary infrastructure, the research community's capacity for independent investigation is constrained. Open science suffers. Reproducibility suffers. And the concentration of capability in a small number of actors raises broader concerns about the development trajectory of increasingly powerful autonomous systems.
+We believe this trajectory is problematic for the field. When the ability to train and iterate on realistic browser agents depends on access to expensive proprietary infrastructure, the research community's capacity for independent investigation is constrained. Open science suffers. Reproducibility suffers. And the concentration of capability in a small number of actors raises broader concerns about the development trajectory of increasingly powerful autonomous systems. This issue affects not only academic groups, but also open-source LM companies operating on budgets that are tiny relative to frontier labs.
 
 **This paper argues for an alternative approach: capture-replay.**
 
@@ -43,9 +45,9 @@ Capture-replay is not a new concept in software engineering. Record-and-replay d
 
 **Our position, stated precisely:**
 
-> **The browser agent research community should prioritize investment in capture-replay infrastructure alongside (not instead of) handcrafted replicas. Capture-replay offers a scalable, economically grounded, and democratizing path to environment construction that complements the reproducibility strengths of replica-based approaches.**
+> **The browser agent research community should replace handcrafted replicas with capture-replay infrastructure. With sufficient capture breadth and tooling, capture-replay can deliver the determinism and coverage researchers want without the human-capital cost of hand-built replicas.**
 
-We emphasize "alongside" deliberately. We are not arguing that handcrafted replicas are without value. They offer important properties including determinism, controlled variation, and unlimited exploration. Our argument is that the community's *near-exclusive* focus on replicas has created a blind spot, and that a more balanced portfolio of environment methodologies would better serve the field's long-term goals.
+We emphasize "replace" deliberately. Handcrafted replicas consume scarce human capital and are not required to achieve determinism, controlled variation, or breadth. Those properties can be achieved by capture-replay at scale: multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. The community's near-exclusive focus on replicas has slowed progress and narrowed evaluation; we argue the field should move past them.
 
 The remainder of this paper develops this argument in detail:
 
@@ -109,7 +111,9 @@ As discussed above, a commercial ecosystem has emerged to fill this gap [15-18].
 
 Leading AI labs use these commercial environments for training and evaluating their browser and computer-use agents. As frontier labs have exhausted most available text data for pretraining, reinforcement learning in simulated environments has become increasingly important. With per-task costs in the thousands to tens of thousands of dollars, these environments represent substantial investments, but ones that well-capitalized organizations can afford while academic groups generally cannot.
 
-**The result is a two-tier system:** well-funded labs train agents on high-quality, realistic environments that they cannot share, while the academic community works primarily with the limited set of open benchmarks. This concentration raises concerns about:
+These training environments are typically proprietary and contract-bound, making it hard for open-source and academic research to access or reproduce the training conditions that drive frontier results.
+
+**The result is a two-tier system:** well-funded labs train agents on high-quality, realistic environments that they cannot share, while the academic community and open-source LM companies work primarily with the limited set of open benchmarks. This concentration raises concerns about:
 
 1. **Reproducibility:** If state-of-the-art results depend on proprietary training environments, the research community cannot fully verify or build upon them.
 2. **Diversity:** Concentrated environment access may lead to agents that excel on specific task distributions while failing on the broader diversity of real-world needs.
@@ -155,11 +159,11 @@ Capture-replay enables a different paradigm: **find people doing economically va
 
 Open-source capture-replay tooling can break the concentration of environment access. Any researcher with a browser can record environments from any website they can access. No proprietary infrastructure required, no licensing fees, no vendor lock-in.
 
-This is not merely theoretical. TRACE is released as open-source software, and its captured environments are published on Hugging Face. The tooling is designed for extensibility: researchers can adapt it to their domains, contribute improvements, and build shared infrastructure without depending on commercial providers.
+This is not merely theoretical. TRACE is released as open-source software (https://github.com/josancamon19/trace), and its captured environments are published on Hugging Face (https://huggingface.co/datasets/josancamon/trace-environments). The tooling is designed for extensibility: researchers can adapt it to their domains, contribute improvements, and build shared infrastructure without depending on commercial providers.
 
 ### 3.5 TRACE: A Proof of Concept
 
-To demonstrate that capture-replay is technically feasible on modern production websites, we developed TRACE (Trajectory Recording and Capture Environments), an open-source pipeline implementing the full capture-process-replay workflow.
+To demonstrate that capture-replay is technically feasible on modern production websites, we developed TRACE (Trajectory Recording and Capture Environments), an open-source pipeline implementing the full capture-process-replay workflow. Implementation details are provided in Appendix A.
 
 **Collection.** TRACE uses a stealth-configured Playwright browser that evades common anti-automation detection while recording comprehensive traces. During recording, TRACE captures:
 - Navigation events and page loads
@@ -204,19 +208,13 @@ A position paper must engage seriously with opposing views. We address the most 
 
 **The concern:** Replica-based environments allow agents to explore freely: taking different paths, making mistakes, recovering from errors. Captured environments are constrained to the specific trajectory recorded; if an agent deviates, the replay may lack the network responses needed to continue.
 
-**Our response:** This is a real limitation, and we do not minimize it. Capture-replay environments have lower exploration latitude than full replicas. An agent that takes a radically different path than the expert will encounter missing responses.
+**Our response:** This is not a fundamental limitation. The low cost of collection makes coverage of alternative paths a data problem, not an environment-construction problem. Two practical mechanisms address exploration directly:
 
-However, several factors moderate this concern:
+1. **Multi-trajectory collection.** Capture multiple expert paths for the same task. These provide recovery behaviors and legitimate alternatives without any hand-built replica.
 
-1. **Many valuable tasks have limited path diversity.** Booking a specific flight, purchasing a particular item, or configuring a specific setting often has a narrow space of valid approaches. The expert path may cover most of what matters.
+2. **Deterministic branching for exploration.** Replay can expose captured branches deterministically, allowing beam-search-style exploration over alternative paths. When an agent hits a missing branch, record-on-miss collection adds it and expands the environment.
 
-2. **Evaluation often focuses on success, not exploration.** For benchmark evaluation, we typically care whether agents can complete tasks, not whether they can explore arbitrarily. Captured environments may suffice for evaluation even when they constrain training.
-
-3. **Capture breadth can expand coverage.** Multiple experts performing the same task differently would produce multiple captured trajectories. Combining these increases the effective exploration space without handcrafting.
-
-4. **Hybrid approaches are possible.** Capture-replay environments could fall back to live web access for uncovered requests, or could be combined with lightweight mocking for common variations.
-
-We argue that limited exploration is an acceptable tradeoff for the scalability gains capture-replay offers, particularly for evaluation use cases. For training, the tradeoff is less favorable, and hybrid approaches may be necessary.
+In short, exploration constraints are solvable with more capture and deterministic branching, not a reason to keep handcrafted replicas.
 
 ### 4.2 "Legal and ethical concerns around captured content"
 
@@ -240,17 +238,7 @@ We note that replica-based benchmarks face analogous concerns. They also copy we
 
 **The concern:** TRACE uses LM-based disambiguation when multiple captured responses match an outgoing request. This introduces potential non-determinism across evaluation runs.
 
-**Our response:** This is a valid technical concern. Our mitigation approach:
-
-1. **Caching.** LM match decisions are cached persistently. Once a disambiguation is made, it is reused in subsequent runs, ensuring determinism within a cache state.
-
-2. **Heuristics first.** LM matching is a fallback; most requests resolve through exact or high-similarity matching without LM involvement.
-
-3. **Transparency.** Match decisions are logged and can be audited. Researchers can verify that their evaluations used consistent matching.
-
-4. **Cache sharing.** Published environments can include pre-computed match caches, ensuring reproducibility for downstream users.
-
-We acknowledge that this is less elegant than the determinism of fully handcrafted replicas. We argue the tradeoff is acceptable given the scalability benefits.
+**Our response:** The LLM matcher is a proof-of-concept convenience, not a requirement. In principle, request matching should be fully deterministic for most websites by canonicalizing and matching on method, URL (scheme/host/path + normalized query), and request body parameters. Ambiguities can be resolved by strict tie-breakers (e.g., exact header matches, body hashes, or earliest-capture precedence) without model calls. A production system should default to deterministic matching and treat LLMs, if used at all, as a last-resort debugging tool.
 
 ### 4.4 "Six tasks doesn't prove scalability"
 
@@ -270,22 +258,18 @@ However, we note:
 
 We welcome the community to stress-test capture-replay at larger scales and report findings.
 
-### 4.5 "Handcrafted replicas will always be needed for some purposes"
+### 4.5 "Handcrafted replicas are necessary for controlled studies"
 
 **The concern:** Certain research questions (robustness to perturbations, controlled ablations, systematic variation) require the control that only handcrafted environments provide.
 
-**Our response:** We agree entirely. Our position is that capture-replay should complement replicas, not replace them. Different research questions call for different environment methodologies:
+**Our response:** We disagree. With sufficient capture breadth and tooling, capture-replay can support controlled studies without hand-built replicas:
 
-| Research Goal | Best Environment Approach |
-|---------------|---------------------------|
-| Controlled ablation studies | Handcrafted replicas |
-| Robustness to input variation | Handcrafted replicas |
-| Coverage of economically valuable tasks | Capture-replay |
-| Rapid prototyping and iteration | Capture-replay |
-| Training with diverse demonstrations | Capture-replay |
-| Canonical benchmark evaluation | Either, depending on needs |
+1. **Multi-trajectory collections** provide alternative valid paths and recovery behaviors.
+2. **Record-on-miss expansion** covers new branches by capturing additional sessions rather than engineering a replica.
+3. **Post-processing and parameterization** can create controlled perturbations (DOM edits, resource swaps, replay-time filtering) while preserving fidelity to real websites.
+4. **Deterministic replay** already provides the reproducibility needed for ablations.
 
-The current portfolio is imbalanced toward replicas. We advocate for rebalancing, not replacement.
+We have not found a research question that strictly requires handcrafted replicas; the human-capital cost is not justified relative to capture-replay.
 
 ---
 
@@ -293,23 +277,23 @@ The current portfolio is imbalanced toward replicas. We advocate for rebalancing
 
 We conclude with specific recommendations for different stakeholders:
 
-### 5.1 For Research Groups
+### 5.1 For Research Groups and Open-Source LM Companies
 
-1. **Allocate resources to capture-replay tooling.** Even modest investment in capture infrastructure can produce substantial environment collections. Consider dedicating a fraction of the effort currently spent on replica construction.
+1. **Redirect resources away from replica construction.** Stop building new handcrafted replicas and invest in capture-replay tooling and collection capacity.
 
 2. **Collect domain-specific environments.** Research groups with expertise in particular domains (finance, healthcare, enterprise software) can capture environments that would be difficult for generalist teams to construct.
 
 3. **Publish captured environments with appropriate safeguards.** Share environments under research-use licenses with credential substitution and PII redaction. Document capture methodology for reproducibility.
 
-4. **Experiment with hybrid approaches.** Combine captured environments with lightweight mocking, live-web fallbacks, or synthetic augmentation to expand exploration latitude.
+4. **Expand capture breadth.** Use record-on-miss, multi-trajectory collection, and replay-time perturbations to expand exploration latitude without handcrafted replicas.
 
 ### 5.2 For Benchmark Creators
 
 1. **Document environment construction costs.** Transparent reporting of person-hours, like TheAgentCompany's exemplary disclosure, enables informed methodology comparisons. We recommend all benchmark papers include this information.
 
-2. **Consider capture-replay for evaluation suites.** Some benchmark evaluation may not require full exploration latitude. Captured environments could enable larger, more diverse evaluation sets.
+2. **Adopt capture-replay for evaluation suites.** Replace new replica-based benchmarks with capture-replay collections to scale coverage and enable deeper error analysis.
 
-3. **Maintain methodology diversity.** The field benefits from multiple approaches to environment construction. Consider including both replica-based and capture-based components in benchmark suites.
+3. **Plan migrations from replicas.** For existing replica-based suites, publish a capture-replay transition plan and a timeline for deprecating handcrafted environments.
 
 4. **Establish shared infrastructure.** Coordinate on common tooling, formats, and distribution mechanisms for captured environments to reduce duplication and enable interoperability.
 
@@ -339,13 +323,13 @@ For those convinced by our argument, we suggest immediate actions:
 
 ## 6. Conclusion
 
-The browser agent research community has made remarkable progress, but our approach to environment construction is limiting our ambitions. Handcrafted replicas, while valuable for controlled research, cannot scale to cover the long tail of economically meaningful web workflows. The concentration of high-quality environments in proprietary platforms constrains open research and independent safety work.
+The browser agent research community has made remarkable progress, but our approach to environment construction is limiting our ambitions. Handcrafted replicas cannot scale to cover the long tail of economically meaningful web workflows and consume scarce human capital that could go toward agent design and diagnosis. The concentration of high-quality environments in proprietary platforms constrains open research and independent safety work.
 
-Capture-replay offers a complementary path: scalable, economically grounded, and inherently democratizing. A single expert demonstration can produce a complete environment in minutes. Any website an expert can use can become a research environment. Open-source tooling can break the dependence on commercial infrastructure.
+Capture-replay offers a replacement path: scalable, economically grounded, and inherently democratizing. A single expert demonstration can produce a complete environment in minutes. Any website an expert can use can become a research environment. Open-source tooling can break the dependence on commercial infrastructure.
 
-We do not claim capture-replay is a panacea. It has real limitations: constrained exploration, legal complexity, technical challenges. But these limitations are tractable, and the potential benefits are substantial enough to warrant serious community investment.
+We do not claim capture-replay is a panacea. It has real limitations: constrained exploration, legal complexity, technical challenges. But these limitations are tractable through additional collection and tooling, and the potential benefits are substantial enough to warrant serious community investment.
 
-**Our position, restated:** The browser agent research community should diversify its environment portfolio, investing in capture-replay infrastructure alongside handcrafted replicas. Doing so will expand coverage, ground research in economically valuable tasks, and democratize access to the environments needed to build capable, beneficial, and safe browser agents.
+**Our position, restated:** The browser agent research community should replace handcrafted replicas with capture-replay infrastructure. Doing so will expand coverage, ground research in economically valuable tasks, and democratize access to the environments needed to build capable and beneficial browser agents.
 
 The tools exist. The methodology is feasible. The path forward requires only that we choose to take it.
 
@@ -401,7 +385,7 @@ The tools exist. The methodology is feasible. The path forward requires only tha
 
 ## Appendix A: TRACE Implementation Details
 
-This appendix provides technical details on the TRACE implementation for researchers interested in understanding, extending, or reproducing the system. The complete source code is available at [repository URL].
+This appendix provides technical details on the TRACE implementation for researchers interested in understanding, extending, or reproducing the system. The complete source code is available at https://github.com/josancamon19/trace.
 
 ### A.1 Collection Architecture
 
@@ -548,7 +532,7 @@ TRACE includes a minimal evaluation runner demonstrating integration with browse
 
 ## Appendix B: Captured Environment Statistics
 
-This appendix provides detailed statistics on the six demonstration environments released with TRACE. All environments are available on Hugging Face at `josancamon/trace-environments`. Statistics are reproduced from our proof-of-concept dataset collection.
+This appendix provides detailed statistics on the six demonstration environments released with TRACE. All environments are available on Hugging Face at https://huggingface.co/datasets/josancamon/trace-environments. Statistics are reproduced from our proof-of-concept dataset collection.
 
 ### B.1 Complete Dataset Statistics
 
