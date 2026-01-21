@@ -18,6 +18,8 @@ Yet beneath this progress lies a troubling structural problem: **the environment
 
 This is not an oversight. It reflects a fundamental constraint: **handcrafted environments are extraordinarily expensive to build.**
 
+> **Our position:** The web agent research community should replace handcrafted replicas with capture-replay infrastructure. Rather than building website replicas, we should record experts completing tasks on live websites and transform those recordings into reusable, offline environments. A single expert demonstration can produce a complete environment in minutes, compared to the hours or days required to handcraft a replica. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
+
 Consider the costs documented in recent benchmark papers:
 
 | Benchmark       | Tasks | Reported Effort                                                                                                            |
@@ -35,9 +37,11 @@ These costs are not only financial. They consume scarce research time that could
 
 This gap has not gone unnoticed by industry. A growing ecosystem of startups now builds browser environments for AI agent training [15-18]. The business models vary: some host live environments, others deliver static datasets, and some offer both. What they share is a focus on creating replica websites and simulated workflows where AI agents can learn through reinforcement learning without triggering blocking mechanisms on real sites.
 
-The scale of investment is remarkable. According to The Information, Anthropic has discussed spending more than \$1 billion on RL environments over the next year [26]. Data-labeling giants like Scale AI, Surge, and Mercor are pivoting resources toward environment construction, with Surge reportedly generating \$1.2 billion in revenue last year from AI lab contracts and recently spinning up a dedicated internal organization for RL environments [26]. Mechanize, a startup focused exclusively on environments, offers software engineers \$500,000 salaries to build them—far higher than typical data-labeling contractor rates [26]. Andreessen Horowitz general partner Jennifer Li summarized the landscape: "All the big AI labs are building RL environments in-house... but AI labs are also looking at third-party vendors that can create high-quality environments" [26].
+The scale of investment is remarkable. According to The Information, Anthropic has discussed spending more than \$1 billion on RL environments over the next year [26]. Data-labeling giants like Scale AI, Surge, and Mercor are pivoting resources toward environment construction, with Surge reportedly generating \$1.2 billion in revenue last year from AI lab contracts and recently spinning up a dedicated internal organization for RL environments [26]. Mechanize, a startup focused exclusively on environments, offers software engineers \$500,000 salaries to build them, far exceeding typical data-labeling contractor rates [26]. Andreessen Horowitz general partner Jennifer Li summarized the landscape: "All the big AI labs are building RL environments in-house... but AI labs are also looking at third-party vendors that can create high-quality environments" [26].
 
 Leading AI labs treat these environments as core training infrastructure. **Browser environments have become a strategic asset: valuable, proprietary, and concentrated in the hands of well-funded organizations.**
+
+**The field is at an inflection point.** Three trends are converging: (1) agents are becoming capable enough that evaluation on short, synthetic tasks no longer discriminates between systems, creating demand for long-horizon, realistic environments; (2) the cost of building such environments has created a two-tier ecosystem where frontier labs invest billions while academic groups work with hundreds of tasks; and (3) the resulting concentration raises safety concerns, as independent researchers cannot study systems trained on environments they cannot access. If the community does not change course, the gap will widen and become structural.
 
 We believe this trajectory is problematic for the field. When the ability to train and iterate on realistic web agents depends on access to expensive proprietary infrastructure, the research community's capacity for independent investigation is constrained. Open science suffers. Reproducibility suffers. And the concentration of capability in a small number of actors raises broader concerns about the development trajectory of increasingly powerful autonomous systems. This issue affects not only academic groups, but also open-source LM companies operating on budgets that are tiny relative to frontier labs.
 
@@ -47,13 +51,9 @@ The core idea is simple: rather than handcrafting website replicas, we record an
 
 Capture-replay is not a new concept in software engineering. Record-and-replay debugging, network mocking, and browser automation testing have used similar techniques for decades. But its application to web agent research has been surprisingly limited. We argue this represents a significant missed opportunity.
 
-To demonstrate feasibility, we developed TRACE (Trajectory Recording and Capture Environments), an open-source capture-replay pipeline. Building robust tooling required approximately 300 hours of engineering effort—analyzing hundreds of captured sessions, developing URL canonicalization heuristics, and iterating on replay matching. But once built, the tooling amortizes: we captured six diverse environments (GitHub, Amazon, Airbnb, Kayak, Uniqlo, Ultimate Guitar) in approximately 40 minutes of total collection time, including retries and quality checks. This is roughly 6-7 minutes per task versus the 10+ hours per task reported for handcrafted benchmarks like TheAgentCompany.
+To demonstrate feasibility, we developed TRACE (Trajectory Recording and Capture Environments), an open-source capture-replay pipeline. Building robust tooling required approximately 300 hours of engineering effort: analyzing hundreds of captured sessions, developing URL canonicalization heuristics, and iterating on replay matching. But once built, the tooling amortizes: we captured six diverse environments (GitHub, Amazon, Airbnb, Kayak, Uniqlo, Ultimate Guitar) in approximately 40 minutes of total collection time, including retries and quality checks. This is roughly 6-7 minutes per task versus the 10+ hours per task reported for handcrafted benchmarks like TheAgentCompany.
 
-**Our position, stated precisely:**
-
-> **The web agent research community should replace handcrafted replicas with capture-replay infrastructure. With sufficient capture breadth and tooling, capture-replay can deliver the determinism and coverage researchers want without the human-capital cost of hand-built replicas.**
-
-We emphasize "replace" deliberately. Handcrafted replicas consume scarce human capital and are not required to achieve determinism, controlled variation, or breadth. Those properties can be achieved by capture-replay at scale: multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. The community's near-exclusive focus on replicas has slowed progress and narrowed evaluation; we argue the field should move past them.
+We emphasize "replace" deliberately. Handcrafted replicas consume scarce human capital but are not required to achieve determinism, controlled variation, or breadth. Those properties can be achieved by capture-replay at scale: multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. The community's near-exclusive focus on replicas has slowed progress and narrowed evaluation; we argue the field should move past them.
 
 The remainder of this paper develops this argument in detail:
 
@@ -174,41 +174,13 @@ This is not merely theoretical. TRACE is released as open-source software (URL r
 
 ### 3.5 TRACE: A Proof of Concept
 
-To demonstrate that capture-replay is technically feasible on modern production websites, we developed TRACE (Trajectory Recording and Capture Environments), an open-source pipeline implementing the full capture-process-replay workflow. Implementation details are provided in Appendix A.
+To demonstrate that capture-replay is technically feasible on modern production websites, we developed TRACE (Trajectory Recording and Capture Environments), an open-source pipeline implementing the full capture-process-replay workflow.
 
-**Collection.** TRACE uses a stealth-configured Playwright browser that evades common anti-automation detection while recording comprehensive traces. During recording, TRACE captures:
-- Navigation events and page loads
-- DOM mutations and full page snapshots
-- Mouse, keyboard, and scroll interactions
-- HTTP requests and responses (HAR format)
-- Screenshots and video frames
-- Browser storage states (cookies, localStorage, IndexedDB)
+TRACE implements three core components: (1) a **collection** system using a stealth-configured Playwright browser that records DOM states, network traffic, user interactions, screenshots, and browser storage; (2) a **post-processing** pipeline that converts raw events to a standardized action DSL, extracts credentials for secure handling, identifies semantic checkpoints, and filters non-essential traffic; and (3) a **replay** engine that serves captured assets offline with deterministic request matching. Full implementation details are provided in Appendix A.
 
-**Post-processing.** Raw captures are transformed through four pipeline stages:
-1. **Tool-call parsing:** Low-level events are converted to a standardized DSL (click, type, scroll, goto, etc.), producing human-readable trajectories.
-2. **Credential extraction:** Login flows and sensitive inputs are identified and extracted to separate secure storage, enabling credential substitution for sharing.
-3. **Checkpoint selection:** An LM-based system identifies semantically meaningful intermediate states for partial-credit evaluation.
-4. **Ignore-list construction:** Analytics, tracking, and non-essential network traffic is identified for filtering during replay.
+**Demonstration dataset.** We release six captured environments spanning GitHub, Amazon, Ultimate Guitar (authenticated flows with login), and Uniqlo, Kayak, Airbnb (unauthenticated). These cover e-commerce, travel search, social coding, and media sites, including sensitive interactions like payment flows. Statistics are provided in Appendix B.
 
-**Replay.** The replay module launches offline environments from capture bundles:
-- All network responses served from captured HAR files
-- Character-based URL matching handles dynamic parameters
-- LM-based disambiguation resolves ambiguous request matches
-- Storage state restoration enables authenticated replays
-- Human trajectory execution for visual debugging
-
-
-**Demonstration dataset.** We release six captured environments covering:
-- **GitHub** (authenticated): Sign in, star repository, search and follow user
-- **Amazon** (authenticated): Sign in, navigate deals, add to cart, proceed to checkout
-- **Ultimate Guitar** (authenticated): Sign in, search tabs, interact with content
-- **Uniqlo** (unauthenticated): Browse products, apply filters, add to cart
-- **Kayak** (unauthenticated): Search flights, apply filters, compare results
-- **Airbnb** (unauthenticated): Search listings, apply filters, view details
-
-These environments demonstrate feasibility across diverse sites including credentialed flows with sensitive interactions (payments, personal data). Each replays fully offline with high determinism across runs when deterministic matching and cached decisions are used.
-
-We emphasize that this dataset is intentionally small. Six tasks is insufficient for benchmark-scale evaluation. TRACE is offered as proof of concept and infrastructure contribution, not as a complete benchmark. The point is demonstrating that capture-replay works, not claiming comprehensive coverage.
+The dataset is intentionally small: six tasks demonstrates *feasibility*, not comprehensive coverage. Building TRACE required approximately 300 hours of engineering effort, but once built, the six environments were captured in about 40 minutes total (~6-7 minutes per task). This asymmetry (high tooling cost, low marginal collection cost) is precisely why capture-replay scales where replicas do not.
 
 ---
 
@@ -703,7 +675,7 @@ This appendix proposes guidelines for responsible capture and distribution of br
 
 ### C.1 Legal Considerations
 
-**Copyright.** Captured environments contain copyrighted material. Fair use doctrines may permit research use, but this is untested for AI training. Replica-based benchmarks face identical concerns—WebArena reproduces Reddit's interface; REAL simulates commercial sites. We recommend documenting fair use rationale and limiting distribution to research contexts.
+**Copyright.** Captured environments contain copyrighted material. Fair use doctrines may permit research use, but this is untested for AI training. Replica-based benchmarks face identical concerns: WebArena reproduces Reddit's interface; REAL simulates commercial sites. We recommend documenting fair use rationale and limiting distribution to research contexts.
 
 **Terms of service.** Most websites prohibit automated access in ToS, though enforceability varies (*hiQ v. LinkedIn*). We recommend avoiding high-volume systematic capture and respecting robots.txt.
 
@@ -734,7 +706,7 @@ Capture-replay has dual-use risks. Environments could train agents for automated
 - Consider whether certain environment types (payment completion, account creation) should be captured at all
 - Tiered access balances openness with responsibility
 
-**Our view:** Proprietary concentration doesn't eliminate misuse risk—it prevents independent safety research. Transparent infrastructure enables collective norm development.
+**Our view:** Proprietary concentration does not eliminate misuse risk; it prevents independent safety research. Transparent infrastructure enables collective norm development.
 
 ### C.5 Three-Tier Consent Framework
 
