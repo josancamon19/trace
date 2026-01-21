@@ -240,7 +240,7 @@ In short, exploration constraints are solvable with more capture and determinist
 
 3. **Restricted distribution.** Not all captured environments should be publicly released. Research-use agreements, access controls, and clear licensing can balance openness with responsibility.
 
-4. **Ethical guidelines.** The community should develop shared norms around what captures are appropriate to create and share. We propose concrete guidelines in Appendix C covering authorization, sensitive data handling, distribution tiers, and misuse prevention.
+4. **Ethical guidelines.** The community should develop shared norms around what captures are appropriate to create and share. We propose guidelines in Appendix C covering legal considerations, privacy, security, misuse potential, a three-tier consent framework, and domain-specific requirements.
 
 5. **Terms of service consideration.** While ToS compliance is complex and varies by jurisdiction, researchers should consider whether their capture and use patterns align with reasonable interpretations of site policies.
 
@@ -379,7 +379,7 @@ We conclude with specific recommendations for different stakeholders:
 
 ### 5.3 For the Broader Community
 
-1. **Develop ethical guidelines for environment capture.** What consent is required? What content can be redistributed? What safeguards are necessary? Community norms would benefit all practitioners.
+1. **Adopt and refine ethical guidelines for environment capture.** We propose comprehensive guidelines in Appendix C addressing consent frameworks, legal considerations, privacy protections, security risks, and domain-specific requirements. Community discussion should refine and formalize these norms.
 
 2. **Create registries of captured environments.** Centralized, searchable collections would reduce duplication and enable broader access. Hugging Face and similar platforms could host these.
 
@@ -697,20 +697,64 @@ Even accounting for retries and mistakes, total collection effort for all six en
 
 ---
 
-## Appendix C: Ethical Guidelines for Environment Capture
+## Appendix C: Ethical and Safety Guidelines for Environment Capture
 
-This appendix proposes concise community guidelines for responsible capture and distribution of browser environments. These guidelines are offered as a starting point for discussion, not definitive policy.
+This appendix proposes guidelines for responsible capture and distribution of browser environments. These are offered as a starting point for community discussion.
 
-1. **Authorization and human subjects.** Capture only from accounts you own or have explicit authorization to use. If observing real users (not researcher demonstrations), obtain IRB or equivalent review.
+### C.1 Legal Considerations
 
-2. **Terms of service awareness.** Consider ToS and jurisdictional constraints; avoid high-volume automated access, credential sharing, or systematic data extraction when it conflicts with reasonable policy interpretations.
+**Copyright.** Captured environments contain copyrighted material. Fair use doctrines may permit research use, but this is untested for AI training. Replica-based benchmarks face identical concerns—WebArena reproduces Reddit's interface; REAL simulates commercial sites. We recommend documenting fair use rationale and limiting distribution to research contexts.
 
-3. **Sensitive data handling.** Extract credentials, redact PII, and minimize data collection (capture only what is necessary; avoid payment flows unless required).
+**Terms of service.** Most websites prohibit automated access in ToS, though enforceability varies (*hiQ v. LinkedIn*). We recommend avoiding high-volume systematic capture and respecting robots.txt.
 
-4. **Distribution and provenance.** Use tiered access (public/research/restricted), provide clear licensing, and record provenance (who, when, account type, post-processing).
+**CFAA considerations.** Post-*Van Buren* (2021), mere ToS violations are not CFAA crimes, but circumventing access controls may be. Capture only from accounts you own or have authorization to use.
 
-5. **Content scope and attribution.** Avoid capturing or redistributing creative/paywalled content when possible; attribute source sites and note copyright ownership.
+### C.2 Privacy and Data Protection
 
-6. **Misuse and security.** Assess misuse risks, include responsible disclosure for vulnerabilities, and document limitations and failure modes.
+Captures contain personal data requiring attention under GDPR/CCPA:
 
-7. **Community infrastructure.** Contribute to shared registries, build compliance tooling (PII detection, credential extraction), and use community review for sensitive domains (health, finance, government).
+1. **Informed consent.** Demonstrators should consent to capture and distribution.
+2. **PII detection and redaction.** Post-processing should detect and redact names, emails, addresses, financial data, and government identifiers.
+3. **Third-party minimization.** Avoid capturing pages with extensive third-party PII unless necessary.
+4. **Credential extraction.** TRACE separates authentication data from content; extend this to general PII.
+
+### C.3 Security Risks
+
+**Credential exposure.** Captures may contain passwords, session cookies, API keys, and tokens. Mitigations: mandatory credential extraction, secure storage, credential rotation after capture, and preference for short-lived tokens.
+
+**Vulnerability disclosure.** Captures may reveal security flaws. Review captures before distribution; establish responsible disclosure procedures; withhold captures revealing serious vulnerabilities.
+
+### C.4 Misuse Potential
+
+Capture-replay has dual-use risks. Environments could train agents for automated fraud, credential stuffing, phishing, or surveillance.
+
+**Mitigations:**
+- Access controls for sensitive domains (finance, healthcare, government)
+- Licensing that prohibits malicious applications
+- Consider whether certain environment types (payment completion, account creation) should be captured at all
+- Tiered access balances openness with responsibility
+
+**Our view:** Proprietary concentration doesn't eliminate misuse risk—it prevents independent safety research. Transparent infrastructure enables collective norm development.
+
+### C.5 Three-Tier Consent Framework
+
+| Tier | Scope | Requirements | Distribution |
+|------|-------|--------------|--------------|
+| 1: Self-demo | Own accounts | Consent, credential extraction | Public after processing |
+| 2: Authorized | Others' demos, research accounts | IRB review, written consent, PII redaction | Research-use license |
+| 3: Sensitive | Healthcare, finance, government | Domain compliance (HIPAA, PCI-DSS), legal review | Institutional agreements |
+
+### C.6 Domain-Specific Notes
+
+- **Healthcare:** Never capture real patient data; treat as Tier 3
+- **Financial:** Stop before payment completion; never capture real card data
+- **Government:** Jurisdiction-specific regulations apply
+- **Enterprise SaaS:** Obtain written authorization from system owners
+
+### C.7 Community Infrastructure
+
+We call for: shared registries with access controls (e.g., Hugging Face), open-source compliance tooling (PII detection, credential extraction), community review for sensitive domains, and incident response procedures.
+
+### C.8 Limitations
+
+These guidelines are not legal advice, cannot anticipate all risks, and depend on community adoption. Strict controls may recreate capability concentration. Despite limitations, explicit guidelines are preferable to the implicit norms around replicas, which sidestep these questions entirely.
