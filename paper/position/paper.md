@@ -234,11 +234,11 @@ In short, exploration constraints are solvable with more capture and determinist
 
 3. **Restricted distribution.** Not all captured environments should be publicly released. Research-use agreements, access controls, and clear licensing can balance openness with responsibility.
 
-4. **Ethical guidelines.** The community should develop shared norms around what captures are appropriate to create and share. We propose guidelines in Section 5.
+4. **Ethical guidelines.** The community should develop shared norms around what captures are appropriate to create and share. We propose concrete guidelines in Appendix C covering authorization, sensitive data handling, distribution tiers, and misuse prevention.
 
 5. **Terms of service consideration.** While ToS compliance is complex and varies by jurisdiction, researchers should consider whether their capture and use patterns align with reasonable interpretations of site policies.
 
-We note that replica-based benchmarks face analogous concerns. They also copy website designs, content structures, and interaction patterns. The legal status of benchmark environments is not fully settled regardless of methodology.
+**Importantly, replica-based benchmarks face analogous concerns that are often overlooked.** WebArena clones the visual design and interaction patterns of Reddit, GitLab, and shopping sites. REAL builds "deterministic simulations" that reproduce real website behavior. These replicas copy copyrighted UI designs, reverse-engineer proprietary interaction models, and redistribute structural representations of commercial products. The legal status of benchmark environments is unsettled regardless of methodology—capture-replay does not introduce novel legal risk categories, it inherits the same ambiguities that replica builders have navigated (often silently) for years. The difference is that capture-replay makes the provenance explicit, which may actually support clearer fair-use arguments for research purposes.
 
 ### 4.3 "LM-based matching introduces non-determinism"
 
@@ -260,7 +260,9 @@ However, we note:
 
 3. **Challenging cases were included.** Authenticated flows, payment interactions, and dynamic content (map interfaces, infinite scroll) are represented.
 
-4. **Scaling is an engineering challenge, not a research question.** Given working tooling, collecting more environments requires time and experts, not methodological breakthroughs.
+4. **The small task count belies substantial engineering investment.** Building TRACE required approximately 300 hours of engineering effort—not to create six tasks, but to develop robust tooling that generalizes across sites. This involved analyzing hundreds of captured sessions to understand request patterns, developing URL canonicalization heuristics that handle diverse parameter schemes, building credential detection that works across varied login flows, and iterating on replay matching until it achieved high fidelity. The six released tasks are the validation that this infrastructure works; the infrastructure itself is the contribution. Once built, adding new environments becomes a matter of minutes per task rather than days.
+
+5. **Scaling is now an engineering challenge, not a research question.** Given working tooling, collecting more environments requires time and experts, not methodological breakthroughs.
 
 We welcome the community to stress-test capture-replay at larger scales and report findings.
 
