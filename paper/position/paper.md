@@ -45,7 +45,7 @@ Capture-replay is not a new concept in software engineering. Record-and-replay d
 
 **Our position, stated precisely:**
 
-> **The browser agent research community should replace handcrafted replicas with capture-replay infrastructure. With sufficient capture breadth and tooling, capture-replay can deliver the determinism and coverage researchers want without the human-capital cost of hand-built replicas.**
+> **The web and computer-use agent research community should replace handcrafted replicas with capture-replay infrastructure. With sufficient capture breadth and tooling, capture-replay can deliver the determinism and coverage researchers want without the human-capital cost of hand-built replicas.**
 
 We emphasize "replace" deliberately. Handcrafted replicas consume scarce human capital and are not required to achieve determinism, controlled variation, or breadth. Those properties can be achieved by capture-replay at scale: multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. The community's near-exclusive focus on replicas has slowed progress and narrowed evaluation; we argue the field should move past them.
 
@@ -84,6 +84,8 @@ Several patterns emerge from this analysis:
 **Pattern 1: The effort-value tradeoff.** Benchmarks that emphasize economically realistic tasks (TheAgentCompany, REAL) require dramatically more construction effort than those emphasizing information retrieval or synthetic reasoning (BrowseComp, GAIA). This is not coincidental. Realistic execution tasks require functional environments with state that actually changes, authentication flows that work, and evaluation criteria that verify real outcomes.
 
 **Pattern 2: Horizon compression.** Even benchmarks labeled as "long-horizon" often consist of relatively short interaction sequences when measured in actual steps. Mind2Web 2 explicitly analyzed this phenomenon, finding that most existing benchmarks concentrate on short-horizon tasks [6]. Long-horizon, multi-session workflows that characterize real knowledge work remain rare.
+
+**Pattern 2.1: Horizon costs explode.** As agents improve, the field is pushing toward longer-horizon evaluations (e.g., METR's work on measuring ability to complete long tasks [23]). But handcrafting long-horizon tasks scales poorly: if some tasks already require 10+ hours to design and verify, the idea of 12-hour, multi-day, or week-long workflows is untenable. Replica construction cannot keep pace with the horizon lengths we need to measure.
 
 **Pattern 3: Domain concentration.** Existing benchmarks heavily favor a small set of domains: e-commerce, content management, developer tools, and travel booking appear repeatedly, while vast categories of economically important web work (financial services, healthcare portals, government services, enterprise SaaS, professional services) remain largely uncovered.
 
@@ -325,15 +327,11 @@ For those convinced by our argument, we suggest immediate actions:
 
 ## 6. Conclusion
 
-The browser agent research community has made remarkable progress, but our approach to environment construction is limiting our ambitions. Handcrafted replicas cannot scale to cover the long tail of economically meaningful web workflows and consume scarce human capital that could go toward agent design and diagnosis. The concentration of high-quality environments in proprietary platforms constrains open research and independent safety work.
+The web and computer-use agent research community has made real progress, but handcrafted replicas are now the bottleneck. They are slow and expensive to build, lock us into small, synthetic task sets, and collapse evaluation to binary success. As task horizons stretch to hours and days, replica construction becomes untenable, and the ecosystem splits into a two-tier system where only well-funded labs and product companies can afford realistic environments.
 
-Capture-replay offers a replacement path: scalable, economically grounded, and inherently democratizing. A single expert demonstration can produce a complete environment in minutes. Any website an expert can use can become a research environment. Open-source tooling can break the dependence on commercial infrastructure.
+Capture-replay replaces that bottleneck with fast, economically grounded environments collected from real work. Deterministic replay, multi-trajectory collection, and branching give us coverage and analysis depth without hand-built replicas. The remaining challenges are about collection logistics and responsible sharing, not environment engineering.
 
-We do not claim capture-replay is a panacea. It has real limitations: constrained exploration, legal complexity, technical challenges. But these limitations are tractable through additional collection and tooling, and the potential benefits are substantial enough to warrant serious community investment.
-
-**Our position, restated:** The browser agent research community should replace handcrafted replicas with capture-replay infrastructure. Doing so will expand coverage, ground research in economically valuable tasks, and democratize access to the environments needed to build capable and beneficial browser agents.
-
-The tools exist. The methodology is feasible. The path forward requires only that we choose to take it.
+**Our position, restated:** The web and computer-use agent research community should replace handcrafted replicas with capture-replay infrastructure. Stop building new replicas, invest in capture tooling and large-scale collection, and standardize sharing so long-horizon, economically valuable tasks become accessible to everyone. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
 
 ---
 
@@ -382,6 +380,8 @@ The tools exist. The methodology is feasible. The path forward requires only tha
 [21] Deng, J., et al. "WebShop: Towards Scalable Real-World Web Interaction with Grounded Language Agents." arXiv:2207.01206, 2022.
 
 [22] SkillWeaver authors. "SkillWeaver: Self-Improving Web Agents via Skill Discovery and Reuse." arXiv:2504.07079, 2024.
+
+[23] METR. "Measuring AI Ability to Complete Long Tasks." https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/
 
 ---
 
@@ -607,103 +607,18 @@ Even accounting for retries and mistakes, total collection effort for all six en
 
 ## Appendix C: Ethical Guidelines for Environment Capture
 
-This appendix proposes community guidelines for responsible capture and distribution of browser environments. These guidelines are offered as a starting point for community discussion, not as definitive policy.
+This appendix proposes concise community guidelines for responsible capture and distribution of browser environments. These guidelines are offered as a starting point for discussion, not definitive policy.
 
-### C.1 Consent and Authorization
+1. **Authorization and human subjects.** Capture only from accounts you own or have explicit authorization to use. If observing real users (not researcher demonstrations), obtain IRB or equivalent review.
 
-**Recommendation 1: Capture only from accounts you own or have explicit authorization to use.**
+2. **Terms of service awareness.** Consider ToS and jurisdictional constraints; avoid high-volume automated access, credential sharing, or systematic data extraction when it conflicts with reasonable policy interpretations.
 
-Captures involving personal accounts should use the researcher's own accounts or accounts created specifically for research purposes. Using credentials belonging to others without explicit consent raises significant ethical and legal concerns.
+3. **Sensitive data handling.** Extract credentials, redact PII, and minimize data collection (capture only what is necessary; avoid payment flows unless required).
 
-**Recommendation 2: Consider terms of service implications.**
+4. **Distribution and provenance.** Use tiered access (public/research/restricted), provide clear licensing, and record provenance (who, when, account type, post-processing).
 
-While ToS compliance varies by jurisdiction and is not settled law, researchers should consider whether their capture patterns align with reasonable interpretations of site policies. High-volume automated access, credential sharing, or systematic data extraction may violate ToS even when technically feasible.
+5. **Content scope and attribution.** Avoid capturing or redistributing creative/paywalled content when possible; attribute source sites and note copyright ownership.
 
-**Recommendation 3: Obtain appropriate institutional review when human subjects are involved.**
+6. **Misuse and security.** Assess misuse risks, include responsible disclosure for vulnerabilities, and document limitations and failure modes.
 
-If captures involve observing real users performing tasks (rather than researchers demonstrating tasks themselves), IRB review or equivalent ethical oversight may be required.
-
-### C.2 Privacy and Data Protection
-
-**Recommendation 4: Implement credential extraction and substitution.**
-
-Never distribute environments containing real passwords, API keys, or authentication tokens. TRACE's credential extraction pipeline provides a reference implementation; similar mechanisms should be standard practice.
-
-**Recommendation 5: Redact personally identifiable information.**
-
-Beyond credentials, captures may contain PII visible in page content: names, addresses, email addresses, phone numbers, payment details, health information. Post-processing should identify and redact such content before distribution.
-
-**Recommendation 6: Consider data minimization.**
-
-Capture only what is necessary for the research purpose. If full network traffic is not needed, consider capturing only DOM states. If payment flows are not being studied, stop capture before entering payment information.
-
-### C.3 Distribution and Access Control
-
-**Recommendation 7: Use tiered access for sensitive environments.**
-
-Not all captured environments should be publicly released. Consider:
-
-- **Public release:** Environments without authentication, with synthetic data, or with all PII removed
-- **Research access:** Environments requiring access agreements that specify permitted uses
-- **Restricted access:** Environments containing sensitive workflows, shared only through direct collaboration
-
-**Recommendation 8: Provide clear licensing and usage terms.**
-
-Distributed environments should include explicit licenses specifying:
-
-- Permitted uses (research, commercial, educational)
-- Attribution requirements
-- Redistribution restrictions
-- Liability disclaimers
-
-**Recommendation 9: Maintain provenance records.**
-
-Document how each environment was captured: who performed the capture, when, from which account type (personal, synthetic, enterprise), and what post-processing was applied. This enables downstream users to assess appropriateness for their use cases.
-
-### C.4 Content and Copyright
-
-**Recommendation 10: Consider copyright implications of captured content.**
-
-Captured environments contain website content that may be protected by copyright. Fair use / fair dealing provisions vary by jurisdiction. Research use may be protected in some contexts; commercial use may not be.
-
-**Recommendation 11: Avoid capturing and redistributing creative content.**
-
-Captures of streaming services, paywalled news, digital books, or other clearly copyrighted creative works raise additional concerns beyond typical website functionality.
-
-**Recommendation 12: Attribute original content creators.**
-
-When distributing environments, acknowledge that the captured content originates from the respective websites and that copyright remains with original creators.
-
-### C.5 Safety and Misuse Prevention
-
-**Recommendation 13: Consider potential for misuse.**
-
-Captured environments could potentially be used to:
-
-- Train agents to perform fraudulent transactions
-- Develop credential-stuffing or account takeover tools
-- Automate spam or abuse on real services
-
-Researchers should consider whether their captures and distributions enable such misuse and implement appropriate safeguards.
-
-**Recommendation 14: Include responsible disclosure mechanisms.**
-
-If captures reveal security vulnerabilities in websites, follow responsible disclosure practices: notify site operators before public release and allow reasonable time for remediation.
-
-**Recommendation 15: Document limitations and failure modes.**
-
-Distributed environments should clearly document what they do and do not support, potential failure modes, and known limitations to prevent misuse through misunderstanding.
-
-### C.6 Community Infrastructure
-
-**Recommendation 16: Contribute to shared registries.**
-
-Centralized, searchable collections of captured environments reduce duplication and enable broader access. Platforms like Hugging Face provide infrastructure for hosting and versioning.
-
-**Recommendation 17: Develop shared tooling for compliance.**
-
-Community tools for automated PII detection, credential extraction, and content classification would reduce the burden on individual researchers and improve consistency.
-
-**Recommendation 18: Establish review processes for sensitive domains.**
-
-For captures in sensitive domains (healthcare, finance, government services), community review processes could help ensure appropriate safeguards before distribution.
+7. **Community infrastructure.** Contribute to shared registries, build compliance tooling (PII detection, credential extraction), and use community review for sensitive domains (health, finance, government).
