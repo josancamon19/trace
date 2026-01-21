@@ -391,6 +391,7 @@ Capture-replay replaces that bottleneck with fast, economically grounded environ
 This appendix provides technical details on the TRACE implementation for researchers interested in understanding, extending, or reproducing the system. The complete source code is available at https://github.com/josancamon19/trace.
 
 ![TRACE pipeline: collection, post-processing, offline replay, and agent evaluation.](../figures/01.png)
+**Figure A1:** TRACE pipeline: collection, post-processing, offline replay, and agent evaluation.
 
 ### A.1 Collection Architecture
 
@@ -427,6 +428,7 @@ For each triggering event, the recorder captures:
 4. **Browser State:** Cookies, localStorage, sessionStorage, and IndexedDB snapshots captured at task completion.
 
 ![TRACE task collection using the desktop app.](../figures/03.png)
+**Figure A2:** Collecting a task using the Tkinter desktop app.
 
 **Data Storage.** Each collection produces:
 
@@ -495,6 +497,7 @@ In practice, this stage discards approximately 50% of captured HTTP requests. Mo
 The replay module reconstructs captured sessions for offline evaluation through a multi-stage request matching system.
 
 ![Offline replay and tool-call parsing for an Amazon task.](../figures/05.png)
+**Figure A3:** Offline replay and tool-call parsing for an Amazon task.
 
 
 **Request Routing.** When the browser issues a request during replay:
