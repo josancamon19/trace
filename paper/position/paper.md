@@ -1,0 +1,723 @@
+# Position: Browser Agent Research Needs Capture-Replay Infrastructure, Not More Handcrafted Replicas
+
+---
+
+## Abstract
+
+**This is a position paper.** We argue that browser agent research should shift significant effort from handcrafted website replicas toward capture-replay infrastructure that turns real expert demonstrations into reusable, offline environments. Current benchmarks require heavy engineering yet cover a narrow, economically unrepresentative slice of web work, while proprietary environment providers concentrate access. Capture-replay offers a scalable alternative: a single expert session can produce a complete environment in minutes, grounded in real workflows and shareable via open-source tooling. We analyze the benchmark landscape and its cost structure, and present TRACE, a proof-of-concept pipeline that works on production sites including authenticated flows. We discuss limitations (reduced exploration, legal and ethical constraints, and replay determinism) and argue they are tractable with hybrid approaches and community norms. We conclude with a call to action to invest in capture-replay alongside replicas and to document environment construction costs to enable fair methodological comparisons.
+
+---
+
+## 1. Introduction
+
+> *"Browser agents are hill climbing in the wrong direction."*
+
+The past two years have witnessed remarkable progress in language-model agents for web and computer use. Systems built on frontier models can now navigate complex websites, fill forms, execute multi-step workflows, and retrieve information across diverse domains [1-11]. Benchmarks such as Mind2Web, WebArena, REAL, OSWorld, BEARCUBS, BrowseComp, and TheAgentCompany have provided standardized evaluation environments that enable reproducible comparisons and have driven rapid capability improvements [1-10].
+
+Yet beneath this progress lies a troubling structural problem: **the environments we use to train and evaluate browser agents bear little resemblance to the tasks that would make these agents economically valuable.** The majority of benchmark tasks fall into categories we characterize as "deep research" (trivia-style multi-hop questions that rarely require browser automation), "information seeking" (simple lookups that could often be answered by a search engine), or "atomic execution" (short, isolated actions like clicking a button or filling a single field). Long-horizon, multi-step workflows that mirror real paid work (booking complex travel itineraries, configuring enterprise SaaS tools, executing financial transactions, managing e-commerce operations) remain dramatically underrepresented.
+
+This is not an oversight. It reflects a fundamental constraint: **handcrafted environments are extraordinarily expensive to build.**
+
+Consider the costs documented in recent benchmark papers:
+
+| Benchmark | Tasks | Reported Effort |
+|-----------|-------|-----------------|
+| WebArena | ~812 | Several months of development by research team; requires self-hosting four functional website replicas |
+| OSWorld | ~369 | Hand-annotated tasks each requiring initial state scripting and custom evaluation functions |
+| TheAgentCompany | ~175 | **3,000 person-hours by 21 contributors** over two months; some tasks took 10+ hours each to design, implement, and verify |
+| REAL | ~112 | Deterministic replicas of 11 real websites with custom evaluation harnesses |
+
+TheAgentCompany's transparent reporting is particularly illuminating: building 175 realistic "employee-style" tasks required 3,000 person-hours, the equivalent of 1.5 full-time engineers working for an entire year. The project involved 21 contributors including software engineers and project managers, with complex tasks requiring more than 10 hours each to design, implement, test, and verify. And these are among the most resource-rich academic teams in the field.
+
+**The implication is stark:** at current construction costs, the academic community cannot build environments at the scale needed to cover the long tail of economically valuable browser tasks. We can produce hundreds of tasks, perhaps low thousands with extraordinary effort, but the space of valuable web workflows spans millions of distinct patterns across hundreds of thousands of websites.
+
+This gap has not gone unnoticed by industry. A growing ecosystem of startups now builds browser environments for AI agent training [15-18]. The business models vary: some host live environments, others deliver static datasets, and some offer both. What they share is a focus on creating replica websites and simulated workflows where AI agents can learn through reinforcement learning without triggering blocking mechanisms on real sites. By some estimates, more than a dozen companies now operate in this space, with individual contracts reaching into the millions of dollars and per-task costs reportedly ranging from $3,000 to $50,000 depending on complexity and fidelity. Leading AI labs treat these environments as core training infrastructure. **Browser environments have become a strategic asset: valuable, proprietary, and concentrated in the hands of well-funded organizations.**
+
+We believe this trajectory is problematic for the field. When the ability to train and iterate on realistic browser agents depends on access to expensive proprietary infrastructure, the research community's capacity for independent investigation is constrained. Open science suffers. Reproducibility suffers. And the concentration of capability in a small number of actors raises broader concerns about the development trajectory of increasingly powerful autonomous systems.
+
+**This paper argues for an alternative approach: capture-replay.**
+
+The core idea is simple: rather than handcrafting website replicas, we record an expert completing a task on a live website and transform that recording into a self-contained environment that can be replayed offline. A single expert demonstration (taking minutes to perform) produces a complete environment bundle including DOM states, network responses, screenshots, and interaction logs. Agents can then be evaluated (and potentially trained) against this frozen snapshot without contacting the live web.
+
+Capture-replay is not a new concept in software engineering. Record-and-replay debugging, network mocking, and browser automation testing have used similar techniques for decades. But its application to browser agent research has been surprisingly limited. We argue this represents a significant missed opportunity.
+
+**Our position, stated precisely:**
+
+> **The browser agent research community should prioritize investment in capture-replay infrastructure alongside (not instead of) handcrafted replicas. Capture-replay offers a scalable, economically grounded, and democratizing path to environment construction that complements the reproducibility strengths of replica-based approaches.**
+
+We emphasize "alongside" deliberately. We are not arguing that handcrafted replicas are without value. They offer important properties including determinism, controlled variation, and unlimited exploration. Our argument is that the community's *near-exclusive* focus on replicas has created a blind spot, and that a more balanced portfolio of environment methodologies would better serve the field's long-term goals.
+
+The remainder of this paper develops this argument in detail:
+
+- **Section 2** presents a taxonomy of existing benchmarks, revealing systematic gaps in economically valuable task coverage and analyzing the cost structure of current approaches.
+- **Section 3** articulates the case for capture-replay, describing its potential advantages and presenting TRACE as a proof-of-concept implementation.
+- **Section 4** addresses alternative views and counterarguments, including concerns about exploration latitude, legal and ethical considerations, and technical feasibility.
+- **Section 5** presents a concrete call to action with specific recommendations for researchers, benchmark creators, and the broader community.
+
+---
+
+## 2. The Current Landscape: Expensive Replicas, Limited Coverage
+
+### 2.1 A Taxonomy of Browser Agent Benchmarks
+
+To understand the current state of browser agent environments, we systematically analyzed ten prominent benchmarks across three dimensions: **task category** (what kind of work the agent performs), **task horizon** (how many steps or how much time tasks typically require), and **economic grounding** (whether tasks resemble work someone would pay to have completed).
+
+| Benchmark | Category | Horizon | Economic Grounding | Key Limitation |
+|-----------|----------|---------|-------------------|----------------|
+| GAIA | Deep research | Medium | Low | Trivia-style multi-hop QA; browser often unnecessary |
+| BEARCUBS | Deep research | Short | Low | Complex search questions requiring manual evaluation |
+| BrowseComp | Deep research | Long | Low | Scavenger hunts emphasizing reasoning over realistic work |
+| Mind2Web 2 | Deep research | Long | Low | Multi-hop QA with LM-generated evaluation |
+| Mind2Web | Info seeking / Execution | Short-Medium | Medium | Mix of IR and simple actions; no golden trajectories |
+| WebVoyager | Info seeking | Short | Low | Labeled as "long-horizon" but tasks are often atomic |
+| WebArena | Execution | Short-Medium | Medium | Action-based on cloned sites; limited multi-step flows |
+| REAL | Execution | Short-Medium | Medium-High | Deterministic replicas; ~50 tasks with clear economic value |
+| OSWorld | Execution | Short-Medium | Medium | Desktop apps; useful but small and requires heavy state machinery |
+| TheAgentCompany | Execution | Medium | High | Realistic workflows but extraordinarily expensive to build |
+
+**Table 1:** Taxonomy of existing browser agent benchmarks. We observe a clear pattern: benchmarks with high economic grounding (TheAgentCompany, parts of REAL) require the most construction effort, while scalable benchmarks (Mind2Web, BrowseComp) tend toward tasks with limited economic value.
+
+Several patterns emerge from this analysis:
+
+**Pattern 1: The effort-value tradeoff.** Benchmarks that emphasize economically realistic tasks (TheAgentCompany, REAL) require dramatically more construction effort than those emphasizing information retrieval or synthetic reasoning (BrowseComp, GAIA). This is not coincidental. Realistic execution tasks require functional environments with state that actually changes, authentication flows that work, and evaluation criteria that verify real outcomes.
+
+**Pattern 2: Horizon compression.** Even benchmarks labeled as "long-horizon" often consist of relatively short interaction sequences when measured in actual steps. Mind2Web 2 explicitly analyzed this phenomenon, finding that most existing benchmarks concentrate on short-horizon tasks [6]. Long-horizon, multi-session workflows that characterize real knowledge work remain rare.
+
+**Pattern 3: Domain concentration.** Existing benchmarks heavily favor a small set of domains: e-commerce, content management, developer tools, and travel booking appear repeatedly, while vast categories of economically important web work (financial services, healthcare portals, government services, enterprise SaaS, professional services) remain largely uncovered.
+
+**Pattern 4: The live-web evaluation problem.** Benchmarks that evaluate on live websites (Mind2Web, BrowseComp, BEARCUBS) face continuous validity challenges as the web changes. Those that avoid this through replicas (WebArena, REAL) gain reproducibility but lose coverage and realism.
+
+### 2.2 The Cost Structure of Environment Construction
+
+Why are realistic browser environments so expensive to build? The costs compound across multiple dimensions:
+
+**Website replication costs.** Creating a functional replica of even a moderately complex website requires reverse-engineering its interaction model, implementing sufficient backend logic to respond meaningfully to agent actions, and maintaining consistency as the original site evolves. REAL's approach (deterministic simulations of 11 real websites) required building custom evaluation harnesses that mix programmatic checks with LLM-based judgment [8].
+
+**State initialization costs.** Realistic tasks often require specific preconditions: items in a shopping cart, emails in an inbox, projects configured in a particular way. OSWorld's task suite required extensive scripting to establish correct initial states for each of its 370 tasks [9]. TheAgentCompany built an entire simulated company environment with interconnected services [10].
+
+**Evaluation complexity costs.** When tasks have multiple valid solutions or require judgment about partial completion, evaluation itself becomes a substantial engineering challenge. The field has increasingly turned to LLM-as-a-judge approaches, but these introduce their own costs, biases, and reproducibility concerns [12].
+
+**Maintenance costs.** The web changes constantly. Benchmarks evaluated on live sites require ongoing curation to verify task validity. Replica-based benchmarks must track upstream changes if they aim to remain representative.
+
+**Credential and access costs.** Many economically valuable tasks require authenticated access to real services. Benchmarks either avoid these tasks, use synthetic accounts with limited functionality, or require evaluators to provide their own credentials. Each approach constrains coverage or reproducibility.
+
+### 2.3 The Concentration of Environment Access
+
+The expense of environment construction has predictable consequences for who can build and access high-quality environments.
+
+As discussed above, a commercial ecosystem has emerged to fill this gap [15-18]. These providers offer browser environments through various models: some host live replicas, others deliver packaged datasets, and some provide both. The environments enable something impossible on real websites: running thousands of AI agents simultaneously through trial-and-error learning without being blocked.
+
+Leading AI labs use these commercial environments for training and evaluating their browser and computer-use agents. As frontier labs have exhausted most available text data for pretraining, reinforcement learning in simulated environments has become increasingly important. With per-task costs in the thousands to tens of thousands of dollars, these environments represent substantial investments, but ones that well-capitalized organizations can afford while academic groups generally cannot.
+
+**The result is a two-tier system:** well-funded labs train agents on high-quality, realistic environments that they cannot share, while the academic community works primarily with the limited set of open benchmarks. This concentration raises concerns about:
+
+1. **Reproducibility:** If state-of-the-art results depend on proprietary training environments, the research community cannot fully verify or build upon them.
+2. **Diversity:** Concentrated environment access may lead to agents that excel on specific task distributions while failing on the broader diversity of real-world needs.
+3. **Safety:** Independent safety research requires access to the same environments used for capability development; concentration of access constrains this.
+
+---
+
+## 3. The Case for Capture-Replay
+
+### 3.1 Core Concept
+
+Capture-replay inverts the environment construction process. Rather than building a website replica and then defining tasks on it, we:
+
+1. **Capture:** An expert performs a real task on a live website while an instrumented browser records everything: DOM states, network traffic, user interactions, screenshots, and video.
+
+2. **Process:** A post-processing pipeline transforms raw captures into clean, reusable artifacts: high-level action sequences (a standardized tool-call DSL), extracted credentials (for secure handling), semantic checkpoints (for partial-credit evaluation), and filtered network logs (removing analytics and non-essential traffic).
+
+3. **Replay:** A replay engine serves the captured assets locally, allowing agents to interact with a frozen snapshot of the original session without contacting the live web.
+
+This approach offers several structural advantages:
+
+### 3.2 Advantage 1: Scalability
+
+The most significant advantage of capture-replay is speed. **A single expert demonstration produces a complete environment in the time it takes to perform the task.**
+
+Our proof-of-concept implementation (TRACE) captured six diverse tasks across GitHub, Amazon, Airbnb, Kayak, Uniqlo, and Ultimate Guitar in under 40 minutes of total expert time. Each capture produced hundreds of HTTP responses, dozens of DOM snapshots, and complete interaction logs. These are artifacts that would require days or weeks to handcraft.
+
+This changes the economics of environment construction fundamentally. At capture-replay speeds:
+
+- A single researcher could produce hundreds of environments per week
+- Crowdsourced collection becomes feasible (we built a desktop app for non-technical collectors)
+- The long tail of websites becomes accessible: any site an expert can use can become an environment
+
+### 3.3 Advantage 2: Economic Grounding
+
+Capture-replay environments are grounded in real tasks by construction. When an expert books an actual flight, configures a real SaaS tool, or completes a genuine e-commerce transaction, the resulting environment captures a workflow that someone demonstrably values enough to perform.
+
+This contrasts with the synthetic task design required for replica-based benchmarks, where researchers must imagine what tasks would be valuable and then construct environments to support them. The imagination often falls short of reality: we design tasks we can evaluate rather than tasks that matter.
+
+Capture-replay enables a different paradigm: **find people doing economically valuable work, record them, and build environments from their actual workflows.** This could connect browser agent research more directly to real productivity gains.
+
+### 3.4 Advantage 3: Democratization
+
+Open-source capture-replay tooling can break the concentration of environment access. Any researcher with a browser can record environments from any website they can access. No proprietary infrastructure required, no licensing fees, no vendor lock-in.
+
+This is not merely theoretical. TRACE is released as open-source software, and its captured environments are published on Hugging Face. The tooling is designed for extensibility: researchers can adapt it to their domains, contribute improvements, and build shared infrastructure without depending on commercial providers.
+
+### 3.5 TRACE: A Proof of Concept
+
+To demonstrate that capture-replay is technically feasible on modern production websites, we developed TRACE (Trajectory Recording and Capture Environments), an open-source pipeline implementing the full capture-process-replay workflow.
+
+**Collection.** TRACE uses a stealth-configured Playwright browser that evades common anti-automation detection while recording comprehensive traces. During recording, TRACE captures:
+- Navigation events and page loads
+- DOM mutations and full page snapshots
+- Mouse, keyboard, and scroll interactions
+- HTTP requests and responses (HAR format)
+- Screenshots and video frames
+- Browser storage states (cookies, localStorage, IndexedDB)
+
+**Post-processing.** Raw captures are transformed through four pipeline stages:
+1. **Tool-call parsing:** Low-level events are converted to a standardized DSL (click, type, scroll, goto, etc.), producing human-readable trajectories.
+2. **Credential extraction:** Login flows and sensitive inputs are identified and extracted to separate secure storage, enabling credential substitution for sharing.
+3. **Checkpoint selection:** An LM-based system identifies semantically meaningful intermediate states for partial-credit evaluation.
+4. **Ignore-list construction:** Analytics, tracking, and non-essential network traffic is identified for filtering during replay.
+
+**Replay.** The replay module launches offline environments from capture bundles:
+- All network responses served from captured HAR files
+- Character-based URL matching handles dynamic parameters
+- LM-based disambiguation resolves ambiguous request matches
+- Storage state restoration enables authenticated replays
+- Human trajectory execution for visual debugging
+
+**Demonstration dataset.** We release six captured environments covering:
+- **GitHub** (authenticated): Sign in, star repository, search and follow user
+- **Amazon** (authenticated): Sign in, navigate deals, add to cart, proceed to checkout
+- **Ultimate Guitar** (authenticated): Sign in, search tabs, interact with content
+- **Uniqlo** (unauthenticated): Browse products, apply filters, add to cart
+- **Kayak** (unauthenticated): Search flights, apply filters, compare results
+- **Airbnb** (unauthenticated): Search listings, apply filters, view details
+
+These environments demonstrate feasibility across diverse sites including credentialed flows with sensitive interactions (payments, personal data). Each replays fully offline with deterministic behavior across runs.
+
+We emphasize that this dataset is intentionally small. Six tasks is insufficient for benchmark-scale evaluation. TRACE is offered as proof of concept and infrastructure contribution, not as a complete benchmark. The point is demonstrating that capture-replay works, not claiming comprehensive coverage.
+
+---
+
+## 4. Alternative Views and Counterarguments
+
+A position paper must engage seriously with opposing views. We address the most significant counterarguments to capture-replay:
+
+### 4.1 "Capture-replay limits agent exploration"
+
+**The concern:** Replica-based environments allow agents to explore freely: taking different paths, making mistakes, recovering from errors. Captured environments are constrained to the specific trajectory recorded; if an agent deviates, the replay may lack the network responses needed to continue.
+
+**Our response:** This is a real limitation, and we do not minimize it. Capture-replay environments have lower exploration latitude than full replicas. An agent that takes a radically different path than the expert will encounter missing responses.
+
+However, several factors moderate this concern:
+
+1. **Many valuable tasks have limited path diversity.** Booking a specific flight, purchasing a particular item, or configuring a specific setting often has a narrow space of valid approaches. The expert path may cover most of what matters.
+
+2. **Evaluation often focuses on success, not exploration.** For benchmark evaluation, we typically care whether agents can complete tasks, not whether they can explore arbitrarily. Captured environments may suffice for evaluation even when they constrain training.
+
+3. **Capture breadth can expand coverage.** Multiple experts performing the same task differently would produce multiple captured trajectories. Combining these increases the effective exploration space without handcrafting.
+
+4. **Hybrid approaches are possible.** Capture-replay environments could fall back to live web access for uncovered requests, or could be combined with lightweight mocking for common variations.
+
+We argue that limited exploration is an acceptable tradeoff for the scalability gains capture-replay offers, particularly for evaluation use cases. For training, the tradeoff is less favorable, and hybrid approaches may be necessary.
+
+### 4.2 "Legal and ethical concerns around captured content"
+
+**The concern:** Capturing and redistributing website content raises legal questions (copyright, terms of service) and ethical questions (privacy, consent, potential for misuse).
+
+**Our response:** These concerns are legitimate and require careful attention. We advocate for:
+
+1. **Credential extraction and substitution.** TRACE's pipeline separates credentials from captured content, allowing environments to be shared without exposing real passwords or tokens. Evaluation harnesses inject credentials at runtime.
+
+2. **PII redaction.** Post-processing should identify and redact personally identifiable information beyond credentials, including names, addresses, and payment details visible in page content.
+
+3. **Restricted distribution.** Not all captured environments should be publicly released. Research-use agreements, access controls, and clear licensing can balance openness with responsibility.
+
+4. **Ethical guidelines.** The community should develop shared norms around what captures are appropriate to create and share. We propose guidelines in Section 5.
+
+5. **Terms of service consideration.** While ToS compliance is complex and varies by jurisdiction, researchers should consider whether their capture and use patterns align with reasonable interpretations of site policies.
+
+We note that replica-based benchmarks face analogous concerns. They also copy website designs, content structures, and interaction patterns. The legal status of benchmark environments is not fully settled regardless of methodology.
+
+### 4.3 "LM-based matching introduces non-determinism"
+
+**The concern:** TRACE uses LM-based disambiguation when multiple captured responses match an outgoing request. This introduces potential non-determinism across evaluation runs.
+
+**Our response:** This is a valid technical concern. Our mitigation approach:
+
+1. **Caching.** LM match decisions are cached persistently. Once a disambiguation is made, it is reused in subsequent runs, ensuring determinism within a cache state.
+
+2. **Heuristics first.** LM matching is a fallback; most requests resolve through exact or high-similarity matching without LM involvement.
+
+3. **Transparency.** Match decisions are logged and can be audited. Researchers can verify that their evaluations used consistent matching.
+
+4. **Cache sharing.** Published environments can include pre-computed match caches, ensuring reproducibility for downstream users.
+
+We acknowledge that this is less elegant than the determinism of fully handcrafted replicas. We argue the tradeoff is acceptable given the scalability benefits.
+
+### 4.4 "Six tasks doesn't prove scalability"
+
+**The concern:** A proof-of-concept with six tasks doesn't demonstrate that capture-replay can scale to benchmark-sized collections or handle the diversity of the web.
+
+**Our response:** Correct. Six tasks demonstrates technical feasibility, not scale. We claim only that capture-replay *can* work, not that we have built a complete benchmark.
+
+However, we note:
+
+1. **The time investment was minimal.** Six environments in ~40 minutes suggests that hundreds are achievable with modest effort.
+
+2. **Diversity was intentional.** We selected sites spanning e-commerce, social coding, travel, retail, and entertainment to demonstrate breadth.
+
+3. **Challenging cases were included.** Authenticated flows, payment interactions, and dynamic content (map interfaces, infinite scroll) are represented.
+
+4. **Scaling is an engineering challenge, not a research question.** Given working tooling, collecting more environments requires time and experts, not methodological breakthroughs.
+
+We welcome the community to stress-test capture-replay at larger scales and report findings.
+
+### 4.5 "Handcrafted replicas will always be needed for some purposes"
+
+**The concern:** Certain research questions (robustness to perturbations, controlled ablations, systematic variation) require the control that only handcrafted environments provide.
+
+**Our response:** We agree entirely. Our position is that capture-replay should complement replicas, not replace them. Different research questions call for different environment methodologies:
+
+| Research Goal | Best Environment Approach |
+|---------------|---------------------------|
+| Controlled ablation studies | Handcrafted replicas |
+| Robustness to input variation | Handcrafted replicas |
+| Coverage of economically valuable tasks | Capture-replay |
+| Rapid prototyping and iteration | Capture-replay |
+| Training with diverse demonstrations | Capture-replay |
+| Canonical benchmark evaluation | Either, depending on needs |
+
+The current portfolio is imbalanced toward replicas. We advocate for rebalancing, not replacement.
+
+---
+
+## 5. Call to Action
+
+We conclude with specific recommendations for different stakeholders:
+
+### 5.1 For Research Groups
+
+1. **Allocate resources to capture-replay tooling.** Even modest investment in capture infrastructure can produce substantial environment collections. Consider dedicating a fraction of the effort currently spent on replica construction.
+
+2. **Collect domain-specific environments.** Research groups with expertise in particular domains (finance, healthcare, enterprise software) can capture environments that would be difficult for generalist teams to construct.
+
+3. **Publish captured environments with appropriate safeguards.** Share environments under research-use licenses with credential substitution and PII redaction. Document capture methodology for reproducibility.
+
+4. **Experiment with hybrid approaches.** Combine captured environments with lightweight mocking, live-web fallbacks, or synthetic augmentation to expand exploration latitude.
+
+### 5.2 For Benchmark Creators
+
+1. **Document environment construction costs.** Transparent reporting of person-hours, like TheAgentCompany's exemplary disclosure, enables informed methodology comparisons. We recommend all benchmark papers include this information.
+
+2. **Consider capture-replay for evaluation suites.** Some benchmark evaluation may not require full exploration latitude. Captured environments could enable larger, more diverse evaluation sets.
+
+3. **Maintain methodology diversity.** The field benefits from multiple approaches to environment construction. Consider including both replica-based and capture-based components in benchmark suites.
+
+4. **Establish shared infrastructure.** Coordinate on common tooling, formats, and distribution mechanisms for captured environments to reduce duplication and enable interoperability.
+
+### 5.3 For the Broader Community
+
+1. **Develop ethical guidelines for environment capture.** What consent is required? What content can be redistributed? What safeguards are necessary? Community norms would benefit all practitioners.
+
+2. **Create registries of captured environments.** Centralized, searchable collections would reduce duplication and enable broader access. Hugging Face and similar platforms could host these.
+
+3. **Pressure commercial providers toward openness.** Encourage environment platforms to release subsets of their collections for research use, or to adopt open standards that reduce lock-in.
+
+4. **Investigate legal frameworks.** Clearer understanding of copyright, ToS, and data protection implications would benefit the entire field. Legal scholarship on AI training data has relevant precedents.
+
+### 5.4 Concrete Next Steps
+
+For those convinced by our argument, we suggest immediate actions:
+
+1. **Try TRACE.** Clone the repository, capture an environment from a website you use, replay it offline. Experience the workflow firsthand.
+
+2. **Identify valuable tasks in your domain.** What browser workflows would genuinely save time or money if automated? These are candidates for capture.
+
+3. **Contribute to shared infrastructure.** Submit captured environments to public registries. Report issues with capture tooling. Propose improvements to post-processing pipelines.
+
+4. **Advocate within your organization.** If you work at a lab with access to commercial environments, advocate for releasing research subsets or contributing to open alternatives.
+
+---
+
+## 6. Conclusion
+
+The browser agent research community has made remarkable progress, but our approach to environment construction is limiting our ambitions. Handcrafted replicas, while valuable for controlled research, cannot scale to cover the long tail of economically meaningful web workflows. The concentration of high-quality environments in proprietary platforms constrains open research and independent safety work.
+
+Capture-replay offers a complementary path: scalable, economically grounded, and inherently democratizing. A single expert demonstration can produce a complete environment in minutes. Any website an expert can use can become a research environment. Open-source tooling can break the dependence on commercial infrastructure.
+
+We do not claim capture-replay is a panacea. It has real limitations: constrained exploration, legal complexity, technical challenges. But these limitations are tractable, and the potential benefits are substantial enough to warrant serious community investment.
+
+**Our position, restated:** The browser agent research community should diversify its environment portfolio, investing in capture-replay infrastructure alongside handcrafted replicas. Doing so will expand coverage, ground research in economically valuable tasks, and democratize access to the environments needed to build capable, beneficial, and safe browser agents.
+
+The tools exist. The methodology is feasible. The path forward requires only that we choose to take it.
+
+---
+
+## References
+
+[1] Song, Y., et al. "BEARCUBS: A Benchmark for Computer-Using Web Agents." arXiv:2503.07919, 2025.
+
+[2] Wei, J., et al. "BrowseComp: A Simple Yet Challenging Benchmark for Browsing Agents." OpenAI, 2025.
+
+[3] Murty, S., et al. "NNetNav: Unsupervised Learning of Browser Agents Through Environment Interaction in the Wild." arXiv:2410.02907, 2024.
+
+[4] Maia, M.J.A., et al. "GAIA: A Benchmark for General AI Assistants in the Wild." arXiv:2311.12983, 2023.
+
+[5] Zhang, C., et al. "Mind2Web: Toward a Generalist Agent for the Web." arXiv:2306.06070, 2023.
+
+[6] Li, Z., et al. "Mind2Web 2: Evaluating Agentic Search with Agent-as-a-Judge." arXiv:2506.21506, 2025.
+
+[7] Zhou, S., et al. "WebArena: A Realistic Web Environment for Building Autonomous Agents." arXiv:2307.13854, 2023.
+
+[8] Garg, D., et al. "REAL: Benchmarking Autonomous Agents on Deterministic Simulations of Real Websites." arXiv:2504.11543, 2025.
+
+[9] Xie, T., et al. "OSWorld: Benchmarking Multimodal Agents for Open-Ended Tasks in Real Computer Environments." arXiv:2404.07972, 2024.
+
+[10] WebArena Team. "TheAgentCompany: A Benchmark of Consequential Tasks for Web and Terminal Agents." arXiv:2412.14161, 2024.
+
+[11] Feng, Y., et al. "BrowserAgent: Grounded Test-Time Adaptation for Web Agents." arXiv:2510.10666v2, 2025.
+
+[12] Xue, T., et al. "An Illusion of Progress? Assessing the Current State of Web Agents." arXiv:2504.01382, 2025.
+
+[13] Murty, S., et al. "Agent Learning via Early Experience: Generalist Web Agents with Temporal Credit Assignment." arXiv:2510.08558, 2025.
+
+[14] Jiang, L., et al. "Beyond Browsing: API-Based Web Agents." Findings of ACL 2025.
+
+[15] Mechanize. https://www.mechanize.work
+
+[16] Plato. https://plato.so
+
+[17] AGI Inc. https://agi.inc
+
+[18] Kaizen. https://www.kaizenautomation.com
+
+[19] OpenAI. "GDPval: Evaluating AI Model Performance on Real-World Economically Valuable Tasks." arXiv:2510.04374.
+
+[20] Ramaswamy, S., et al. "SWE-Lancer: Benchmarking LLMs on Freelance Software Engineering Tasks." arXiv:2502.12115.
+
+[21] Deng, J., et al. "WebShop: Towards Scalable Real-World Web Interaction with Grounded Language Agents." arXiv:2207.01206, 2022.
+
+[22] SkillWeaver authors. "SkillWeaver: Self-Improving Web Agents via Skill Discovery and Reuse." arXiv:2504.07079, 2024.
+
+---
+
+## Appendix A: TRACE Implementation Details
+
+This appendix provides technical details on the TRACE implementation for researchers interested in understanding, extending, or reproducing the system. The complete source code is available at [repository URL].
+
+### A.1 Collection Architecture
+
+TRACE's collection system is built on Playwright with a stealth-configured Chromium browser designed to avoid anti-automation detection while maintaining full recording fidelity.
+
+**Browser Configuration.** The collector launches Chromium with carefully selected arguments to evade bot detection:
+
+```
+--disable-blink-features=AutomationControlled
+--disable-features=VizDisplayCompositor
+--no-sandbox
+--disable-web-security
+--enable-automation=false
+```
+
+The context is configured with realistic defaults: 1366×768 viewport, `en-US` locale, `America/New_York` timezone, and standard HTTP headers including `Accept-Language`, `Sec-Fetch-*` headers, and geolocation permissions.
+
+**Event Recording.** The `Recorder` class captures events across multiple categories:
+
+| Event Category | Event Types | Trigger Conditions |
+|---------------|-------------|-------------------|
+| State:Page | `load`, `domcontentloaded`, `loaded` | Page lifecycle events |
+| State:Browser | `navigated`, `navigate_start`, `back` | Navigation events |
+| Action:User | `click`, `input`, `contextmenu`, `submit` | User interactions |
+
+For each triggering event, the recorder captures:
+
+1. **Accessibility Snapshot:** A YAML-formatted tree of up to 400 interactive elements extracted via Playwright's accessibility API, including element roles, names, ARIA attributes, and unique reference IDs.
+
+2. **Screenshots:** Captured via Chrome DevTools Protocol (CDP) to avoid visual flicker, throttled to maximum one per 500ms to prevent duplicates.
+
+3. **Network Traffic:** Full HAR (HTTP Archive) recording of all requests and responses, including headers, POST data, and response bodies (base64-encoded for binary content).
+
+4. **Browser State:** Cookies, localStorage, sessionStorage, and IndexedDB snapshots captured at task completion.
+
+**Data Storage.** Each collection produces:
+
+- SQLite database (`tasks.db`) with task metadata and step records
+- Per-step DOM snapshots in `data/doms/task_{id}/step_{n}.txt`
+- Screenshots in `data/screenshots/task_{id}/*.png`
+- Video recordings in `data/videos/task_{id}/*.webm`
+- Capture bundle in `data/captures/task_{id}/` containing:
+  - `manifest.json`: Task metadata and resource index
+  - `recording.har`: Complete HTTP archive
+  - `storage/storage_state.json`: Browser storage snapshot
+  - `resources/`: Cached static assets
+
+### A.2 Post-Processing Pipeline
+
+The post-processing pipeline transforms raw captures into clean, shareable artifacts through four sequential stages.
+
+**Stage 1: Tool-Call Parsing.** Raw browser events are converted to a standardized Domain-Specific Language (DSL):
+
+| DSL Action | Source Events | Parameters |
+|------------|--------------|------------|
+| `go_to` | `state:browser:navigated` (initial) | `url` |
+| `click` | `action:user:click`, `pointerdown/up` | `coordinates`, `element_info`, `navigates_to` |
+| `type` | `action:user:input`, `keydown` | `value`, `submit`, `element_info` |
+| `scroll` | `action:user:scroll` | `x`, `y` (absolute coordinates) |
+
+The parser handles event accumulation (e.g., multiple keydown events into a single `type` action), detects navigation consequences of clicks, and preserves DOM snapshot references for each action.
+
+**Stage 2: Credential Extraction.** An LLM-based extractor (`gpt-5` with medium reasoning) identifies credential-related interactions by analyzing:
+
+- Tool calls with `type` actions on login-related elements
+- DOM context around input fields (labels, placeholders, ARIA descriptions)
+- Navigation patterns indicating authentication flows
+
+Extracted credentials are stored in a structured format:
+
+```json
+{
+  "website": "amazon.com",
+  "fields": [
+    {"field_name": "email", "field_value": "user@example.com"},
+    {"field_name": "password", "field_value": "[REDACTED]"}
+  ],
+  "tool_call_ids": [3, 4]
+}
+```
+
+This separation enables credential substitution during sharing while preserving the trajectory structure.
+
+**Stage 3: Checkpoint Selection.** An LLM analyzes the full trajectory to identify 2-3 semantically meaningful intermediate states suitable for partial-credit evaluation. The prompt instructs the model to consider:
+
+- Key actions that represent partial task completion
+- Navigation events to significant pages (results, confirmation screens)
+- Timestamp gaps indicating complex reasoning or significant progress
+
+**Stage 4: Ignore-List Construction.** Network traffic is analyzed to identify hosts and URL patterns that can be safely omitted during replay:
+
+- Analytics and tracking domains (Google Analytics, Facebook Pixel, etc.)
+- Ad networks and retargeting services
+- Non-essential third-party services (chat widgets, A/B testing)
+
+In practice, this stage discards approximately 50% of captured HTTP requests. Modern websites include substantial tracking and analytics traffic that is entirely unnecessary for core functionality. The resulting `ignored.json` file lists URL patterns to abort during replay, significantly reducing noise and improving determinism.
+
+### A.3 Replay Engine
+
+The replay module reconstructs captured sessions for offline evaluation through a multi-stage request matching system.
+
+**Request Routing.** When the browser issues a request during replay:
+
+1. **Ignore Check:** URLs matching patterns in `ignored.json` are immediately aborted.
+
+2. **Exact Match:** The HAR file is searched for entries with identical method and URL base (scheme + host + path). If a single match exists, it is used directly.
+
+3. **Character-Based Matching:** For URLs with dynamic query parameters, a character-frequency similarity score is computed:
+
+   ```
+   score = Σ min(target_char_count[c], candidate_char_count[c])
+   ```
+
+   URLs are normalized before matching (removing timestamp parameters, sorting query strings). Candidates with >90% character overlap and matching all target characters are treated as perfect matches.
+
+4. **LLM Disambiguation:** When multiple candidates remain after character-based filtering, the top-5 candidates (ranked by match score) are sent to an LLM (`gpt-5-nano` with low reasoning) for selection. The prompt provides:
+   - Target request details (method, normalized URL, headers, POST data)
+   - Candidate request details with response MIME types
+   - Character match scores as additional context
+
+**Response Fulfillment.** Once a HAR entry is selected:
+
+1. Response headers are extracted, with `Set-Cookie` headers combined with newlines (per HTTP spec).
+2. Response bodies are decoded (base64 for binary content, UTF-8 for text).
+3. The request is fulfilled via Playwright's route API with appropriate content-type headers.
+
+**Caching.** LLM match decisions are cached in `matches.json` keyed by `{method}-{url}-{body_hash_16}`. Subsequent replays reuse cached decisions for determinism. The `--ignore-cache` flag forces fresh LLM matching for debugging.
+
+**Storage State.** Optional `--include-storage-state` flag restores cookies and localStorage from the capture, enabling replay of authenticated sessions.
+
+### A.4 Evaluation Harness
+
+TRACE includes a minimal evaluation runner demonstrating integration with browser-use agents:
+
+1. **Environment Launch:** Load capture bundle, configure HAR replay routing, open starting URL.
+
+2. **Agent Execution:** Initialize browser-use agent with task description and target website. Agent interacts with the replayed environment through standard browser automation APIs.
+
+3. **Checkpoint Evaluation:** Compare agent's trajectory against human checkpoints using semantic similarity. An LLM judge determines whether the agent reached equivalent states, allowing alternative valid paths.
+
+4. **Success Determination:** Binary success is assessed by comparing the agent's final state against the task's expected outcome (for action tasks) or answer (for information retrieval tasks).
+
+---
+
+## Appendix B: Captured Environment Statistics
+
+This appendix provides detailed statistics on the six demonstration environments released with TRACE. All environments are available on Hugging Face at `josancamon/trace-environments`. Statistics are reproduced from our proof-of-concept dataset collection.
+
+### B.1 Complete Dataset Statistics
+
+The following table consolidates all measured statistics from the six captured environments:
+
+| Task | Website | Type | Clicks | Tools | Creds | HTTP | Cache | Shots | DOM | Time(s) | Size |
+|------|---------|------|--------|-------|-------|------|-------|-------|-----|---------|------|
+| 1 | github.com | Action | 11 | 8 | Yes | 715 | 311 | 12 | 35 | 39.0 | 64 MB |
+| 2 | amazon.com | Action | 14 | 11 | Yes | 1,199 | 468 | 20 | 31 | 69.2 | 94 MB |
+| 3 | ultimate-guitar.com | Action | 19 | 15 | Yes | 2,752 | 534 | 20 | 46 | 54.9 | 117 MB |
+| 4 | uniqlo.com | Action | 11 | 10 | No | 1,315 | 783 | 12 | 12 | 46.1 | 128 MB |
+| 5 | kayak.com | Info | 14 | 11 | No | 816 | 452 | 32 | 17 | 110.7 | 154 MB |
+| 6 | airbnb.com | Info | 15 | 12 | No | 928 | 544 | 24 | 19 | 103.9 | 106 MB |
+
+**Column definitions:**
+- **Clicks:** Number of click events recorded
+- **Tools:** Number of high-level tool calls after post-processing
+- **Creds:** Whether the task involved credential entry (login flows)
+- **HTTP:** Total HTTP request/response pairs in HAR file (before ignore-list filtering)
+- **Cache:** Number of cached static resources
+- **Shots:** Number of screenshots captured
+- **DOM:** Number of DOM/accessibility snapshots captured
+- **Time(s):** Task execution duration in seconds (successful run only)
+- **Size:** Total capture bundle size on disk
+
+**Aggregate totals:**
+- Total HTTP requests: 7,725 (before filtering; ~50% discarded by ignore-list)
+- Total cached resources: 3,092
+- Total screenshots: 120
+- Total DOM snapshots: 160
+- Total storage: 663 MB
+
+**Note on collection time:** The Time(s) column reflects the duration of a successful task execution. Actual collection effort is approximately 5 minutes per task when accounting for retries due to collection errors, website issues, or mistakes during demonstration. The six-task dataset required roughly 30 minutes of total collection effort.
+
+### B.2 Task Descriptions
+
+**Task 1: GitHub (Authenticated)**
+Sign in to GitHub, star a specific repository, use the search bar to find a target user, and follow that user. Exercises authentication flow, navigation between different GitHub features, and account-level actions.
+
+**Task 2: Amazon (Authenticated)**
+Sign in to Amazon, navigate to current deals section, identify a discounted item meeting specified constraints (minimum discount percentage), add to cart, and proceed toward checkout using saved payment method and default address. Exercises e-commerce workflow including authentication, filtering, cart management, and payment initiation.
+
+**Task 3: Ultimate Guitar (Authenticated)**
+Sign in to Ultimate Guitar, search for specific guitar tabs, interact with tab content including scrolling through chords and playback controls. Exercises authentication on a media-heavy site with interactive content.
+
+**Task 4: Uniqlo (Unauthenticated)**
+Browse Uniqlo product catalog, apply category and size filters, view product details, and add item to cart. Exercises e-commerce browsing and filtering without authentication.
+
+**Task 5: Kayak (Information Retrieval)**
+Search for flights with specified origin, destination, and date constraints. Apply filters for price, stops, and airlines. Compare results and extract specific flight information. Exercises travel search with complex filtering and dynamic content loading.
+
+**Task 6: Airbnb (Information Retrieval)**
+Search for accommodations with specified location, dates, and guest count. Apply filters for property type, price range, and amenities. Browse listings with map interaction and view detailed property information. Exercises map-based search with complex filtering.
+
+### B.3 Observations
+
+Several patterns emerge from the collected data:
+
+1. **HTTP traffic scales with site complexity.** Ultimate Guitar generated the most HTTP requests (2,752), likely due to media-heavy content and third-party integrations. Travel sites (Kayak, Airbnb) had moderate traffic despite complex UIs.
+
+2. **Bundle size correlates with cached resources.** Uniqlo and Kayak, despite different task types, both required substantial cached resources (783 and 452 respectively), resulting in larger bundle sizes.
+
+3. **Authenticated tasks were faster.** Tasks 1-3 (authenticated) averaged 54.4 seconds, while tasks 5-6 (information retrieval, unauthenticated) averaged 107.3 seconds. This likely reflects the more exploratory nature of information retrieval tasks.
+
+4. **DOM snapshot frequency varies by interaction pattern.** Ultimate Guitar (46 snapshots) and GitHub (35 snapshots) had higher snapshot counts due to more frequent triggering events (clicks, form submissions).
+
+Even accounting for retries and mistakes, total collection effort for all six environments was approximately 30 minutes (~5 minutes per task), demonstrating the efficiency of capture-replay compared to handcrafted environment construction which can require hours or days per task.
+
+---
+
+## Appendix C: Ethical Guidelines for Environment Capture
+
+This appendix proposes community guidelines for responsible capture and distribution of browser environments. These guidelines are offered as a starting point for community discussion, not as definitive policy.
+
+### C.1 Consent and Authorization
+
+**Recommendation 1: Capture only from accounts you own or have explicit authorization to use.**
+
+Captures involving personal accounts should use the researcher's own accounts or accounts created specifically for research purposes. Using credentials belonging to others without explicit consent raises significant ethical and legal concerns.
+
+**Recommendation 2: Consider terms of service implications.**
+
+While ToS compliance varies by jurisdiction and is not settled law, researchers should consider whether their capture patterns align with reasonable interpretations of site policies. High-volume automated access, credential sharing, or systematic data extraction may violate ToS even when technically feasible.
+
+**Recommendation 3: Obtain appropriate institutional review when human subjects are involved.**
+
+If captures involve observing real users performing tasks (rather than researchers demonstrating tasks themselves), IRB review or equivalent ethical oversight may be required.
+
+### C.2 Privacy and Data Protection
+
+**Recommendation 4: Implement credential extraction and substitution.**
+
+Never distribute environments containing real passwords, API keys, or authentication tokens. TRACE's credential extraction pipeline provides a reference implementation; similar mechanisms should be standard practice.
+
+**Recommendation 5: Redact personally identifiable information.**
+
+Beyond credentials, captures may contain PII visible in page content: names, addresses, email addresses, phone numbers, payment details, health information. Post-processing should identify and redact such content before distribution.
+
+**Recommendation 6: Consider data minimization.**
+
+Capture only what is necessary for the research purpose. If full network traffic is not needed, consider capturing only DOM states. If payment flows are not being studied, stop capture before entering payment information.
+
+### C.3 Distribution and Access Control
+
+**Recommendation 7: Use tiered access for sensitive environments.**
+
+Not all captured environments should be publicly released. Consider:
+
+- **Public release:** Environments without authentication, with synthetic data, or with all PII removed
+- **Research access:** Environments requiring access agreements that specify permitted uses
+- **Restricted access:** Environments containing sensitive workflows, shared only through direct collaboration
+
+**Recommendation 8: Provide clear licensing and usage terms.**
+
+Distributed environments should include explicit licenses specifying:
+
+- Permitted uses (research, commercial, educational)
+- Attribution requirements
+- Redistribution restrictions
+- Liability disclaimers
+
+**Recommendation 9: Maintain provenance records.**
+
+Document how each environment was captured: who performed the capture, when, from which account type (personal, synthetic, enterprise), and what post-processing was applied. This enables downstream users to assess appropriateness for their use cases.
+
+### C.4 Content and Copyright
+
+**Recommendation 10: Consider copyright implications of captured content.**
+
+Captured environments contain website content that may be protected by copyright. Fair use / fair dealing provisions vary by jurisdiction. Research use may be protected in some contexts; commercial use may not be.
+
+**Recommendation 11: Avoid capturing and redistributing creative content.**
+
+Captures of streaming services, paywalled news, digital books, or other clearly copyrighted creative works raise additional concerns beyond typical website functionality.
+
+**Recommendation 12: Attribute original content creators.**
+
+When distributing environments, acknowledge that the captured content originates from the respective websites and that copyright remains with original creators.
+
+### C.5 Safety and Misuse Prevention
+
+**Recommendation 13: Consider potential for misuse.**
+
+Captured environments could potentially be used to:
+
+- Train agents to perform fraudulent transactions
+- Develop credential-stuffing or account takeover tools
+- Automate spam or abuse on real services
+
+Researchers should consider whether their captures and distributions enable such misuse and implement appropriate safeguards.
+
+**Recommendation 14: Include responsible disclosure mechanisms.**
+
+If captures reveal security vulnerabilities in websites, follow responsible disclosure practices: notify site operators before public release and allow reasonable time for remediation.
+
+**Recommendation 15: Document limitations and failure modes.**
+
+Distributed environments should clearly document what they do and do not support, potential failure modes, and known limitations to prevent misuse through misunderstanding.
+
+### C.6 Community Infrastructure
+
+**Recommendation 16: Contribute to shared registries.**
+
+Centralized, searchable collections of captured environments reduce duplication and enable broader access. Platforms like Hugging Face provide infrastructure for hosting and versioning.
+
+**Recommendation 17: Develop shared tooling for compliance.**
+
+Community tools for automated PII detection, credential extraction, and content classification would reduce the burden on individual researchers and improve consistency.
+
+**Recommendation 18: Establish review processes for sensitive domains.**
+
+For captures in sensitive domains (healthcare, finance, government services), community review processes could help ensure appropriate safeguards before distribution.
