@@ -1,20 +1,20 @@
-# Position: Browser Agent Research Needs Capture-Replay Infrastructure, Not More Handcrafted Replicas
+# Position: Web Agent Research Needs Capture-Replay Infrastructure, Not More Handcrafted Replicas
 
 ---
 
 ## Abstract
 
-**This is a position paper.** We argue that browser agent research should replace handcrafted website replicas with capture-replay infrastructure that turns real expert demonstrations into reusable, offline environments. Current benchmarks require heavy engineering yet cover a narrow, economically unrepresentative slice of web work, while proprietary environment providers concentrate access. Capture-replay offers a scalable alternative: a single expert session can produce a complete environment in minutes, grounded in real workflows and shareable via open-source tooling. We analyze the benchmark landscape and its cost structure, and present TRACE, a proof-of-concept pipeline that works on production sites including authenticated flows. We discuss limitations (reduced exploration, legal and ethical constraints, and replay determinism) and argue they are tractable through additional collection and community norms. We conclude with a call to action to redirect investment away from handcrafted replicas and toward capture-replay, and to document environment construction costs to enable fair methodological comparisons.
+**This is a position paper.** We argue that web agent research should replace handcrafted website replicas with capture-replay infrastructure that turns real expert demonstrations into reusable, offline environments. Current benchmarks require heavy engineering yet cover a narrow, economically unrepresentative slice of web work, while proprietary environment providers concentrate access. Capture-replay offers a scalable alternative: a single expert session can produce a complete environment in minutes, grounded in real workflows and shareable via open-source tooling. We analyze the benchmark landscape and its cost structure, and present TRACE, a proof-of-concept pipeline that works on production sites including authenticated flows. We discuss limitations (reduced exploration, legal and ethical constraints, and replay determinism) and argue they are tractable through additional collection and community norms. We conclude with a call to action to redirect investment away from handcrafted replicas and toward capture-replay, and to document environment construction costs to enable fair methodological comparisons.
 
 ---
 
 ## 1. Introduction
 
-> *"Browser agents are hill climbing in the wrong direction."*
+> *"Web agents are hill climbing in the wrong direction."*
 
 The past two years have witnessed remarkable progress in language-model agents for web and computer use. Systems built on frontier models can now navigate complex websites, fill forms, execute multi-step workflows, and retrieve information across diverse domains [1-11]. Benchmarks such as Mind2Web, WebArena, REAL, OSWorld, BEARCUBS, BrowseComp, and TheAgentCompany have provided standardized evaluation environments that enable reproducible comparisons and have driven rapid capability improvements [1-10].
 
-Yet beneath this progress lies a troubling structural problem: **the environments we use to train and evaluate browser agents bear little resemblance to the tasks that would make these agents economically valuable.** The majority of benchmark tasks fall into categories we characterize as "deep research" (trivia-style multi-hop questions that rarely require browser automation), "information seeking" (simple lookups that could often be answered by a search engine), or "atomic execution" (short, isolated actions like clicking a button or filling a single field). Long-horizon, multi-step workflows that mirror real paid work (booking complex travel itineraries, configuring enterprise SaaS tools, executing financial transactions, managing e-commerce operations) remain dramatically underrepresented. More importantly, most benchmarks are not collected from people doing paid work; they are task templates designed for evaluability rather than traces of real economic activity.
+Yet beneath this progress lies a troubling structural problem: **the environments we use to train and evaluate web agents bear little resemblance to the tasks that would make these agents economically valuable.** The majority of benchmark tasks fall into categories we characterize as "deep research" (trivia-style multi-hop questions that rarely require browser automation), "information seeking" (simple lookups that could often be answered by a search engine), or "atomic execution" (short, isolated actions like clicking a button or filling a single field). Long-horizon, multi-step workflows that mirror real paid work (booking complex travel itineraries, configuring enterprise SaaS tools, executing financial transactions, managing e-commerce operations) remain dramatically underrepresented. More importantly, most benchmarks are not collected from people doing paid work; they are task templates designed for evaluability rather than traces of real economic activity.
 
 This is not an oversight. It reflects a fundamental constraint: **handcrafted environments are extraordinarily expensive to build.**
 
@@ -35,17 +35,17 @@ These costs are not only financial. They consume scarce research time that could
 
 This gap has not gone unnoticed by industry. A growing ecosystem of startups now builds browser environments for AI agent training [15-18]. The business models vary: some host live environments, others deliver static datasets, and some offer both. What they share is a focus on creating replica websites and simulated workflows where AI agents can learn through reinforcement learning without triggering blocking mechanisms on real sites. By some estimates, more than a dozen companies now operate in this space, with individual contracts reaching into the millions of dollars and per-task costs reportedly ranging from $3,000 to $50,000 depending on complexity and fidelity. Leading AI labs treat these environments as core training infrastructure. **Browser environments have become a strategic asset: valuable, proprietary, and concentrated in the hands of well-funded organizations.**
 
-We believe this trajectory is problematic for the field. When the ability to train and iterate on realistic browser agents depends on access to expensive proprietary infrastructure, the research community's capacity for independent investigation is constrained. Open science suffers. Reproducibility suffers. And the concentration of capability in a small number of actors raises broader concerns about the development trajectory of increasingly powerful autonomous systems. This issue affects not only academic groups, but also open-source LM companies operating on budgets that are tiny relative to frontier labs.
+We believe this trajectory is problematic for the field. When the ability to train and iterate on realistic web agents depends on access to expensive proprietary infrastructure, the research community's capacity for independent investigation is constrained. Open science suffers. Reproducibility suffers. And the concentration of capability in a small number of actors raises broader concerns about the development trajectory of increasingly powerful autonomous systems. This issue affects not only academic groups, but also open-source LM companies operating on budgets that are tiny relative to frontier labs.
 
 **This paper argues for an alternative approach: capture-replay.**
 
 The core idea is simple: rather than handcrafting website replicas, we record an expert completing a task on a live website and transform that recording into a self-contained environment that can be replayed offline. A single expert demonstration (taking minutes to perform) produces a complete environment bundle including DOM states, network responses, screenshots, and interaction logs. Agents can then be evaluated (and potentially trained) against this frozen snapshot without contacting the live web.
 
-Capture-replay is not a new concept in software engineering. Record-and-replay debugging, network mocking, and browser automation testing have used similar techniques for decades. But its application to browser agent research has been surprisingly limited. We argue this represents a significant missed opportunity.
+Capture-replay is not a new concept in software engineering. Record-and-replay debugging, network mocking, and browser automation testing have used similar techniques for decades. But its application to web agent research has been surprisingly limited. We argue this represents a significant missed opportunity.
 
 **Our position, stated precisely:**
 
-> **The web and computer-use agent research community should replace handcrafted replicas with capture-replay infrastructure. With sufficient capture breadth and tooling, capture-replay can deliver the determinism and coverage researchers want without the human-capital cost of hand-built replicas.**
+> **The web agent research community should replace handcrafted replicas with capture-replay infrastructure. With sufficient capture breadth and tooling, capture-replay can deliver the determinism and coverage researchers want without the human-capital cost of hand-built replicas.**
 
 We emphasize "replace" deliberately. Handcrafted replicas consume scarce human capital and are not required to achieve determinism, controlled variation, or breadth. Those properties can be achieved by capture-replay at scale: multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. The community's near-exclusive focus on replicas has slowed progress and narrowed evaluation; we argue the field should move past them.
 
@@ -62,7 +62,7 @@ The remainder of this paper develops this argument in detail:
 
 ### 2.1 A Taxonomy of Browser Agent Benchmarks
 
-To understand the current state of browser agent environments, we systematically analyzed ten prominent benchmarks across three dimensions: **task category** (what kind of work the agent performs), **task horizon** (how many steps or how much time tasks typically require), and **economic grounding** (whether tasks resemble work someone would pay to have completed).
+To understand the current state of web agent environments, we systematically analyzed ten prominent benchmarks across three dimensions: **task category** (what kind of work the agent performs), **task horizon** (how many steps or how much time tasks typically require), and **economic grounding** (whether tasks resemble work someone would pay to have completed).
 
 | Benchmark | Category | Horizon | Economic Grounding | Key Limitation |
 |-----------|----------|---------|-------------------|----------------|
@@ -77,7 +77,7 @@ To understand the current state of browser agent environments, we systematically
 | OSWorld | Execution | Short-Medium | Medium | Desktop apps; useful but small and requires heavy state machinery |
 | TheAgentCompany | Execution | Medium | High | Realistic workflows but extraordinarily expensive to build |
 
-**Table 1:** Taxonomy of existing browser agent benchmarks. We observe a clear pattern: benchmarks with high economic grounding (TheAgentCompany, parts of REAL) require the most construction effort, while scalable benchmarks (Mind2Web, BrowseComp) tend toward tasks with limited economic value.
+**Table 1:** Taxonomy of existing web agent benchmarks. We observe a clear pattern: benchmarks with high economic grounding (TheAgentCompany, parts of REAL) require the most construction effort, while scalable benchmarks (Mind2Web, BrowseComp) tend toward tasks with limited economic value.
 
 Several patterns emerge from this analysis:
 
@@ -111,7 +111,7 @@ The expense of environment construction has predictable consequences for who can
 
 As discussed above, a commercial ecosystem has emerged to fill this gap [15-18]. These providers offer browser environments through various models: some host live replicas, others deliver packaged datasets, and some provide both. The environments enable something impossible on real websites: running thousands of AI agents simultaneously through trial-and-error learning without being blocked.
 
-Leading AI labs use these commercial environments for training and evaluating their browser and computer-use agents. As frontier labs have exhausted most available text data for pretraining, reinforcement learning in simulated environments has become increasingly important. With per-task costs in the thousands to tens of thousands of dollars, these environments represent substantial investments, but ones that well-capitalized organizations can afford while academic groups generally cannot.
+Leading AI labs use these commercial environments for training and evaluating their web agents. As frontier labs have exhausted most available text data for pretraining, reinforcement learning in simulated environments has become increasingly important. With per-task costs in the thousands to tens of thousands of dollars, these environments represent substantial investments, but ones that well-capitalized organizations can afford while academic groups generally cannot.
 
 We also see this dynamic inside product companies building agents for their own products: teams are spun up to build replicas of their own UIs and workflows so they can train and evaluate at scale. This is yet another signal that handcrafted environments are expensive, bespoke infrastructure, not a sustainable research path.
 
@@ -157,7 +157,7 @@ Capture-replay environments are grounded in real tasks by construction. When an 
 
 This contrasts with the synthetic task design required for replica-based benchmarks, where researchers must imagine what tasks would be valuable and then construct environments to support them. The imagination often falls short of reality: we design tasks we can evaluate rather than tasks that matter.
 
-Capture-replay enables a different paradigm: **find people doing economically valuable work, record them, and build environments from their actual workflows.** This could connect browser agent research more directly to real productivity gains.
+Capture-replay enables a different paradigm: **find people doing economically valuable work, record them, and build environments from their actual workflows.** This could connect web agent research more directly to real productivity gains.
 
 ### 3.4 Advantage 3: Democratization
 
@@ -327,11 +327,11 @@ For those convinced by our argument, we suggest immediate actions:
 
 ## 6. Conclusion
 
-The web and computer-use agent research community has made real progress, but handcrafted replicas are now the bottleneck. They are slow and expensive to build, lock us into small, synthetic task sets, and collapse evaluation to binary success. As task horizons stretch to hours and days, replica construction becomes untenable, and the ecosystem splits into a two-tier system where only well-funded labs and product companies can afford realistic environments.
+The web agent research community has made real progress, but handcrafted replicas are now the bottleneck. They are slow and expensive to build, lock us into small, synthetic task sets, and collapse evaluation to binary success. As task horizons stretch to hours and days, replica construction becomes untenable, and the ecosystem splits into a two-tier system where only well-funded labs and product companies can afford realistic environments.
 
 Capture-replay replaces that bottleneck with fast, economically grounded environments collected from real work. Deterministic replay, multi-trajectory collection, and branching give us coverage and analysis depth without hand-built replicas. The remaining challenges are about collection logistics and responsible sharing, not environment engineering.
 
-**Our position, restated:** The web and computer-use agent research community should replace handcrafted replicas with capture-replay infrastructure. Stop building new replicas, invest in capture tooling and large-scale collection, and standardize sharing so long-horizon, economically valuable tasks become accessible to everyone. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
+**Our position, restated:** The web agent research community should replace handcrafted replicas with capture-replay infrastructure. Stop building new replicas, invest in capture tooling and large-scale collection, and standardize sharing so long-horizon, economically valuable tasks become accessible to everyone. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
 
 ---
 
