@@ -20,12 +20,12 @@ This is not an oversight. It reflects a fundamental constraint: **handcrafted en
 
 Consider the costs documented in recent benchmark papers:
 
-| Benchmark | Tasks | Reported Effort |
-|-----------|-------|-----------------|
-| WebArena | ~812 | Several months of development by research team; requires self-hosting four functional website replicas |
-| OSWorld | ~369 | Hand-annotated tasks each requiring initial state scripting and custom evaluation functions |
-| TheAgentCompany | ~175 | **3,000 person-hours by 21 contributors** over two months; some tasks took 10+ hours each to design, implement, and verify |
-| REAL | ~112 | Deterministic replicas of 11 real websites with custom evaluation harnesses |
+| Benchmark       | Tasks | Reported Effort                                                                                                            |
+| --------------- | ----- | -------------------------------------------------------------------------------------------------------------------------- |
+| WebArena        | ~812  | Several months of development by research team; requires self-hosting four functional website replicas                     |
+| OSWorld         | ~369  | Hand-annotated tasks each requiring initial state scripting and custom evaluation functions                                |
+| TheAgentCompany | ~175  | **3,000 person-hours by 21 contributors** over two months; some tasks took 10+ hours each to design, implement, and verify |
+| REAL            | ~112  | Deterministic replicas of 11 real websites with custom evaluation harnesses                                                |
 
 TheAgentCompany's transparent reporting is particularly illuminating: building 175 realistic "employee-style" tasks required 3,000 person-hours, the equivalent of 1.5 full-time engineers working for an entire year. The project involved 21 contributors including software engineers and project managers, with complex tasks requiring more than 10 hours each to design, implement, test, and verify. And these are among the most resource-rich academic teams in the field.
 
@@ -64,18 +64,18 @@ The remainder of this paper develops this argument in detail:
 
 To understand the current state of web agent environments, we systematically analyzed ten prominent benchmarks across three dimensions: **task category** (what kind of work the agent performs), **task horizon** (how many steps or how much time tasks typically require), and **economic grounding** (whether tasks resemble work someone would pay to have completed).
 
-| Benchmark | Category | Horizon | Economic Grounding | Key Limitation |
-|-----------|----------|---------|-------------------|----------------|
-| GAIA | Deep research | Medium | Low | Trivia-style multi-hop QA; browser often unnecessary |
-| BEARCUBS | Deep research | Short | Low | Complex search questions requiring manual evaluation |
-| BrowseComp | Deep research | Long | Low | Scavenger hunts emphasizing reasoning over realistic work |
-| Mind2Web 2 | Deep research | Long | Low | Multi-hop QA with LM-generated evaluation |
-| Mind2Web | Info seeking / Execution | Short-Medium | Medium | Mix of IR and simple actions; no golden trajectories |
-| WebVoyager | Info seeking | Short | Low | Labeled as "long-horizon" but tasks are often atomic |
-| WebArena | Execution | Short-Medium | Medium | Action-based on cloned sites; limited multi-step flows |
-| REAL | Execution | Short-Medium | Medium-High | Deterministic replicas; ~50 tasks with clear economic value |
-| OSWorld | Execution | Short-Medium | Medium | Desktop apps; useful but small and requires heavy state machinery |
-| TheAgentCompany | Execution | Medium | High | Realistic workflows but extraordinarily expensive to build |
+| Benchmark       | Category                 | Horizon      | Economic Grounding | Key Limitation                                                    |
+| --------------- | ------------------------ | ------------ | ------------------ | ----------------------------------------------------------------- |
+| GAIA            | Deep research            | Medium       | Low                | Trivia-style multi-hop QA; browser often unnecessary              |
+| BEARCUBS        | Deep research            | Short        | Low                | Complex search questions requiring manual evaluation              |
+| BrowseComp      | Deep research            | Long         | Low                | Scavenger hunts emphasizing reasoning over realistic work         |
+| Mind2Web 2      | Deep research            | Long         | Low                | Multi-hop QA with LM-generated evaluation                         |
+| Mind2Web        | Info seeking / Execution | Short-Medium | Medium             | Mix of IR and simple actions; no golden trajectories              |
+| WebVoyager      | Info seeking             | Short        | Low                | Labeled as "long-horizon" but tasks are often atomic              |
+| WebArena        | Execution                | Short-Medium | Medium             | Action-based on cloned sites; limited multi-step flows            |
+| REAL            | Execution                | Short-Medium | Medium-High        | Deterministic replicas; ~50 tasks with clear economic value       |
+| OSWorld         | Execution                | Short-Medium | Medium             | Desktop apps; useful but small and requires heavy state machinery |
+| TheAgentCompany | Execution                | Medium       | High               | Realistic workflows but extraordinarily expensive to build        |
 
 **Table 1:** Taxonomy of existing web agent benchmarks. We observe a clear pattern: benchmarks with high economic grounding (TheAgentCompany, parts of REAL) require the most construction effort, while scalable benchmarks (Mind2Web, BrowseComp) tend toward tasks with limited economic value.
 
@@ -189,6 +189,7 @@ To demonstrate that capture-replay is technically feasible on modern production 
 - LM-based disambiguation resolves ambiguous request matches
 - Storage state restoration enables authenticated replays
 - Human trajectory execution for visual debugging
+
 
 **Demonstration dataset.** We release six captured environments covering:
 - **GitHub** (authenticated): Sign in, star repository, search and follow user
@@ -389,6 +390,8 @@ Capture-replay replaces that bottleneck with fast, economically grounded environ
 
 This appendix provides technical details on the TRACE implementation for researchers interested in understanding, extending, or reproducing the system. The complete source code is available at https://github.com/josancamon19/trace.
 
+![TRACE pipeline: collection, post-processing, offline replay, and agent evaluation.](../figures/01.png)
+
 ### A.1 Collection Architecture
 
 TRACE's collection system is built on Playwright with a stealth-configured Chromium browser designed to avoid anti-automation detection while maintaining full recording fidelity.
@@ -407,11 +410,11 @@ The context is configured with realistic defaults: 1366×768 viewport, `en-US` l
 
 **Event Recording.** The `Recorder` class captures events across multiple categories:
 
-| Event Category | Event Types | Trigger Conditions |
-|---------------|-------------|-------------------|
-| State:Page | `load`, `domcontentloaded`, `loaded` | Page lifecycle events |
-| State:Browser | `navigated`, `navigate_start`, `back` | Navigation events |
-| Action:User | `click`, `input`, `contextmenu`, `submit` | User interactions |
+| Event Category | Event Types                               | Trigger Conditions    |
+| -------------- | ----------------------------------------- | --------------------- |
+| State:Page     | `load`, `domcontentloaded`, `loaded`      | Page lifecycle events |
+| State:Browser  | `navigated`, `navigate_start`, `back`     | Navigation events     |
+| Action:User    | `click`, `input`, `contextmenu`, `submit` | User interactions     |
 
 For each triggering event, the recorder captures:
 
@@ -422,6 +425,8 @@ For each triggering event, the recorder captures:
 3. **Network Traffic:** Full HAR (HTTP Archive) recording of all requests and responses, including headers, POST data, and response bodies (base64-encoded for binary content).
 
 4. **Browser State:** Cookies, localStorage, sessionStorage, and IndexedDB snapshots captured at task completion.
+
+![TRACE task collection using the desktop app.](../figures/03.png)
 
 **Data Storage.** Each collection produces:
 
@@ -441,12 +446,12 @@ The post-processing pipeline transforms raw captures into clean, shareable artif
 
 **Stage 1: Tool-Call Parsing.** Raw browser events are converted to a standardized Domain-Specific Language (DSL):
 
-| DSL Action | Source Events | Parameters |
-|------------|--------------|------------|
-| `go_to` | `state:browser:navigated` (initial) | `url` |
-| `click` | `action:user:click`, `pointerdown/up` | `coordinates`, `element_info`, `navigates_to` |
-| `type` | `action:user:input`, `keydown` | `value`, `submit`, `element_info` |
-| `scroll` | `action:user:scroll` | `x`, `y` (absolute coordinates) |
+| DSL Action | Source Events                         | Parameters                                    |
+| ---------- | ------------------------------------- | --------------------------------------------- |
+| `go_to`    | `state:browser:navigated` (initial)   | `url`                                         |
+| `click`    | `action:user:click`, `pointerdown/up` | `coordinates`, `element_info`, `navigates_to` |
+| `type`     | `action:user:input`, `keydown`        | `value`, `submit`, `element_info`             |
+| `scroll`   | `action:user:scroll`                  | `x`, `y` (absolute coordinates)               |
 
 The parser handles event accumulation (e.g., multiple keydown events into a single `type` action), detects navigation consequences of clicks, and preserves DOM snapshot references for each action.
 
@@ -488,6 +493,9 @@ In practice, this stage discards approximately 50% of captured HTTP requests. Mo
 ### A.3 Replay Engine
 
 The replay module reconstructs captured sessions for offline evaluation through a multi-stage request matching system.
+
+![Offline replay and tool-call parsing for an Amazon task.](../figures/05.png)
+
 
 **Request Routing.** When the browser issues a request during replay:
 
@@ -540,14 +548,14 @@ This appendix provides detailed statistics on the six demonstration environments
 
 The following table consolidates all measured statistics from the six captured environments:
 
-| Task | Website | Type | Clicks | Tools | Creds | HTTP | Cache | Shots | DOM | Time(s) | Size |
-|------|---------|------|--------|-------|-------|------|-------|-------|-----|---------|------|
-| 1 | github.com | Action | 11 | 8 | Yes | 715 | 311 | 12 | 35 | 39.0 | 64 MB |
-| 2 | amazon.com | Action | 14 | 11 | Yes | 1,199 | 468 | 20 | 31 | 69.2 | 94 MB |
-| 3 | ultimate-guitar.com | Action | 19 | 15 | Yes | 2,752 | 534 | 20 | 46 | 54.9 | 117 MB |
-| 4 | uniqlo.com | Action | 11 | 10 | No | 1,315 | 783 | 12 | 12 | 46.1 | 128 MB |
-| 5 | kayak.com | Info | 14 | 11 | No | 816 | 452 | 32 | 17 | 110.7 | 154 MB |
-| 6 | airbnb.com | Info | 15 | 12 | No | 928 | 544 | 24 | 19 | 103.9 | 106 MB |
+| Task | Website             | Type   | Clicks | Tools | Creds | HTTP  | Cache | Shots | DOM | Time(s) | Size   |
+| ---- | ------------------- | ------ | ------ | ----- | ----- | ----- | ----- | ----- | --- | ------- | ------ |
+| 1    | github.com          | Action | 11     | 8     | Yes   | 715   | 311   | 12    | 35  | 39.0    | 64 MB  |
+| 2    | amazon.com          | Action | 14     | 11    | Yes   | 1,199 | 468   | 20    | 31  | 69.2    | 94 MB  |
+| 3    | ultimate-guitar.com | Action | 19     | 15    | Yes   | 2,752 | 534   | 20    | 46  | 54.9    | 117 MB |
+| 4    | uniqlo.com          | Action | 11     | 10    | No    | 1,315 | 783   | 12    | 12  | 46.1    | 128 MB |
+| 5    | kayak.com           | Info   | 14     | 11    | No    | 816   | 452   | 32    | 17  | 110.7   | 154 MB |
+| 6    | airbnb.com          | Info   | 15     | 12    | No    | 928   | 544   | 24    | 19  | 103.9   | 106 MB |
 
 **Column definitions:**
 - **Clicks:** Number of click events recorded
