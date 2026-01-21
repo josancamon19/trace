@@ -227,6 +227,10 @@ As discussed above, a commercial ecosystem has emerged to fill this gap. These p
 
 Leading AI labs use these commercial environments for training and evaluating their web agents. As frontier labs have exhausted most available text data for pretraining, reinforcement learning in simulated environments has become increasingly important. With per-task costs in the thousands to tens of thousands of dollars, these environments represent substantial investments, but ones that well-capitalized organizations can afford while academic groups generally cannot.
 
+We also see this dynamic inside product companies building agents for their own products: teams are spun up to build replicas of their own UIs and workflows so they can train and evaluate at scale. This is yet another signal that handcrafted environments are expensive, bespoke infrastructure, not a sustainable research path.
+
+These training environments are typically proprietary and contract-bound, making it hard for open-source and academic research to access or reproduce the training conditions that drive frontier results.
+
 \textbf{The result is a two-tier system:} well-funded labs train agents on high-quality, realistic environments that they cannot share, while the academic community and open-source LM companies work primarily with the limited set of open benchmarks. This concentration raises concerns about:
 
 \begin{enumerate}
@@ -269,7 +273,9 @@ This changes the economics of environment construction fundamentally. At capture
 
 Capture-replay environments are grounded in real tasks by construction. When an expert books an actual flight, configures a real SaaS tool, or completes a genuine e-commerce transaction, the resulting environment captures a workflow that someone demonstrably values enough to perform.
 
-This contrasts with the synthetic task design required for replica-based benchmarks, where researchers must imagine what tasks would be valuable and then construct environments to support them. Capture-replay enables a different paradigm: \textbf{find people doing economically valuable work, record them, and build environments from their actual workflows.}
+This contrasts with the synthetic task design required for replica-based benchmarks, where researchers must imagine what tasks would be valuable and then construct environments to support them. The imagination often falls short of reality: we design tasks we can evaluate rather than tasks that matter.
+
+Capture-replay enables a different paradigm: \textbf{find people doing economically valuable work, record them, and build environments from their actual workflows.} This could connect web agent research more directly to real productivity gains.
 
 \subsection{Advantage 3: Democratization}
 
@@ -322,13 +328,64 @@ In short, exploration constraints are solvable with more capture and determinist
     \item \textbf{Ethical guidelines.} The community should develop shared norms around what captures are appropriate. We propose guidelines in Appendix~\ref{app:ethics}.
 \end{enumerate}
 
-\textbf{Importantly, replica-based benchmarks face analogous concerns that are often overlooked.} WebArena clones the visual design and interaction patterns of Reddit, GitLab, and shopping sites. REAL builds ``deterministic simulations'' that reproduce real website behavior. These replicas copy copyrighted UI designs, reverse-engineer proprietary interaction models, and redistribute structural representations of commercial products. Capture-replay does not introduce novel legal risk categories; it inherits the same ambiguities that replica builders have navigated for years.
+\textbf{Importantly, replica-based benchmarks face analogous concerns that are often overlooked.} WebArena clones the visual design and interaction patterns of Reddit, GitLab, and shopping sites. REAL builds ``deterministic simulations'' that reproduce real website behavior. These replicas copy copyrighted UI designs, reverse-engineer proprietary interaction models, and redistribute structural representations of commercial products. The legal status of benchmark environments is unsettled regardless of methodology. Capture-replay does not introduce novel legal risk categories; it inherits the same ambiguities that replica builders have navigated (often silently) for years. The difference is that capture-replay makes the provenance explicit, which may actually support clearer fair-use arguments for research purposes.
+
+\subsection{``LM-based matching introduces non-determinism''}
+
+\paragraph{The concern:} TRACE uses LM-based disambiguation when multiple captured responses match an outgoing request. This introduces potential non-determinism across evaluation runs.
+
+\paragraph{Our response:} The LLM matcher is a proof-of-concept convenience, not a requirement. In principle, request matching should be fully deterministic for most websites by canonicalizing and matching on method, URL (scheme/host/path + normalized query), and request body parameters. Ambiguities can be resolved by strict tie-breakers (e.g., exact header matches, body hashes, or earliest-capture precedence) without model calls. A production system should default to deterministic matching and treat LLMs, if used at all, as a last-resort debugging tool.
+
+\subsection{``Six tasks doesn't prove scalability''}
+
+\paragraph{The concern:} A proof-of-concept with six tasks doesn't demonstrate that capture-replay can scale to benchmark-sized collections or handle the diversity of the web.
+
+\paragraph{Our response:} Correct. Six tasks demonstrates technical feasibility, not scale. We claim only that capture-replay \emph{can} work, not that we have built a complete benchmark.
+
+However, we note:
+
+\begin{enumerate}
+    \item \textbf{The time investment was minimal.} Six environments in about 40 minutes of total collection time (about 6:40 per task) suggests that hundreds are achievable with modest effort.
+    \item \textbf{Diversity was intentional.} We selected sites spanning e-commerce, social coding, travel, retail, and entertainment to demonstrate breadth.
+    \item \textbf{Challenging cases were included.} Authenticated flows, payment interactions, and dynamic content (map interfaces, infinite scroll) are represented.
+    \item \textbf{The small task count belies substantial engineering investment.} Building TRACE required approximately 300 hours of engineering effort: not to create six tasks, but to develop robust tooling that generalizes across sites. The six released tasks are the validation that this infrastructure works; the infrastructure itself is the contribution.
+    \item \textbf{Scaling is now an engineering challenge, not a research question.} Given working tooling, collecting more environments requires time and experts, not methodological breakthroughs.
+\end{enumerate}
+
+We welcome the community to stress-test capture-replay at larger scales and report findings.
+
+\subsection{``Handcrafted replicas are necessary for controlled studies''}
+
+\paragraph{The concern:} Certain research questions (robustness to perturbations, controlled ablations, systematic variation) require the control that only handcrafted environments provide.
+
+\paragraph{Our response:} We disagree. With sufficient capture breadth and tooling, capture-replay can support controlled studies without hand-built replicas:
+
+\begin{enumerate}
+    \item \textbf{Multi-trajectory collections} provide alternative valid paths and recovery behaviors.
+    \item \textbf{Record-on-miss expansion} covers new branches by capturing additional sessions rather than engineering a replica.
+    \item \textbf{Post-processing and parameterization} can create controlled perturbations (DOM edits, resource swaps, replay-time filtering) while preserving fidelity to real websites.
+    \item \textbf{Deterministic replay} already provides the reproducibility needed for ablations.
+\end{enumerate}
+
+We have not found a research question that strictly requires handcrafted replicas; the human-capital cost is not justified relative to capture-replay.
+
+\subsection{``If capture-replay works, why do commercial environment providers exist?''}
+
+\paragraph{The concern:} Companies charge \$3,000 to \$50,000 per task for browser environments. These are sophisticated actors with access to the same techniques. If capture-replay were sufficient, why would labs pay these prices?
+
+\paragraph{Our response:} Commercial providers do use capture-replay methods. They are not building environments from scratch. Their value proposition is scale, customization, and handling the tedious engineering that most teams cannot or will not do.
+
+Building robust capture-replay infrastructure is genuinely hard. TRACE required approximately 300 hours of engineering effort, involving pattern analysis across hundreds of websites, iterative refinement of URL canonicalization heuristics, debugging replay failures across diverse site architectures, and developing detection logic that generalizes beyond individual sites. This is tedious, unglamorous work that does not produce publishable research artifacts---exactly the kind of work that commercial providers monetize.
+
+The existence of commercial providers does not invalidate capture-replay; it validates that capture-replay is the underlying methodology. What providers sell is the engineering labor to make it work reliably at scale, plus customization layers (parameterized variations, API integrations, guaranteed coverage). Our argument is that this engineering should be done once and shared openly, not replicated behind paywalls at every organization. TRACE is a step toward that shared infrastructure.
 
 \subsection{``Training requires more exploration than evaluation''}
 
 \paragraph{The concern:} TRACE is currently validated for evaluation, not RL training. Training via reinforcement learning requires exploration, trial-and-error, and feedback from mistakes. Captured environments cannot provide negative rewards for failed actions or support recovery from off-trajectory states.
 
-\paragraph{Our response:} We see no fundamental barrier to training use, only engineering and data scale challenges. Consider what multi-trajectory capture-replay provides:
+\paragraph{Our response:} TRACE is currently validated for evaluation, not RL training, but we see no fundamental barrier to training use, only engineering and data scale challenges. Notably, handcrafted replicas face the same challenge: supporting diverse exploration paths requires either engineering every possible interaction (expensive) or accepting limited coverage. The difference is that capture-replay can expand coverage in minutes per trajectory, while replicas require significant engineering effort per new behavior. We note that while details remain proprietary, commercial environment providers appear to use capture-based methods (not pure handcrafted replicas) to achieve faster environment generation, suggesting the industry has already moved in this direction.
+
+Consider what multi-trajectory capture-replay provides:
 
 \begin{enumerate}
     \item \textbf{A graph of valid transitions, not a single path.} With sufficient trajectory diversity, captured environments form a state-action graph suitable for offline RL and batch RL methods.
@@ -381,23 +438,37 @@ We conclude with specific recommendations:
 \begin{enumerate}
     \item \textbf{Redirect resources away from replica construction.} Stop building new handcrafted replicas and invest in capture-replay tooling and collection capacity.
     \item \textbf{Collect domain-specific environments.} Research groups with domain expertise (finance, healthcare, enterprise software) can capture environments difficult for generalist teams.
-    \item \textbf{Publish captured environments with safeguards.} Share environments under research-use licenses with credential substitution and PII redaction.
+    \item \textbf{Publish captured environments with safeguards.} Share environments under research-use licenses with credential substitution and PII redaction. Document capture methodology for reproducibility.
+    \item \textbf{Expand capture breadth.} Use record-on-miss, multi-trajectory collection, and replay-time perturbations to expand exploration latitude without handcrafted replicas.
 \end{enumerate}
 
 \subsection{For Benchmark Creators}
 
 \begin{enumerate}
-    \item \textbf{Document environment construction costs.} Transparent reporting of person-hours, like TheAgentCompany's exemplary disclosure, enables informed methodology comparisons.
-    \item \textbf{Adopt capture-replay for new evaluation suites.} Replace replica-based benchmarks with capture-replay collections to scale coverage.
-    \item \textbf{Establish shared infrastructure.} Coordinate on common tooling, formats, and distribution mechanisms.
+    \item \textbf{Document environment construction costs.} Transparent reporting of person-hours, like TheAgentCompany's exemplary disclosure, enables informed methodology comparisons. We recommend all benchmark papers include this information.
+    \item \textbf{Adopt capture-replay for evaluation suites.} Replace new replica-based benchmarks with capture-replay collections to scale coverage and enable deeper error analysis.
+    \item \textbf{Plan migrations from replicas.} For existing replica-based suites, publish a capture-replay transition plan and a timeline for deprecating handcrafted environments.
+    \item \textbf{Establish shared infrastructure.} Coordinate on common tooling, formats, and distribution mechanisms for captured environments to reduce duplication and enable interoperability.
 \end{enumerate}
 
 \subsection{For the Broader Community}
 
 \begin{enumerate}
-    \item \textbf{Adopt ethical guidelines for environment capture.} We propose comprehensive guidelines in Appendix~\ref{app:ethics}.
-    \item \textbf{Create registries of captured environments.} Centralized, searchable collections would reduce duplication.
-    \item \textbf{Investigate legal frameworks.} Clearer understanding of copyright, ToS, and data protection implications would benefit the entire field.
+    \item \textbf{Adopt and refine ethical guidelines for environment capture.} We propose comprehensive guidelines in Appendix~\ref{app:ethics} addressing consent frameworks, legal considerations, privacy protections, security risks, and domain-specific requirements. Community discussion should refine and formalize these norms.
+    \item \textbf{Create registries of captured environments.} Centralized, searchable collections would reduce duplication and enable broader access. Hugging Face and similar platforms could host these.
+    \item \textbf{Pressure commercial providers toward openness.} Encourage environment platforms to release subsets of their collections for research use, or to adopt open standards that reduce lock-in.
+    \item \textbf{Investigate legal frameworks.} Clearer understanding of copyright, ToS, and data protection implications would benefit the entire field. Legal scholarship on AI training data has relevant precedents.
+\end{enumerate}
+
+\subsection{Concrete Next Steps}
+
+For those convinced by our argument, we suggest immediate actions:
+
+\begin{enumerate}
+    \item \textbf{Try TRACE.} Clone the repository, capture an environment from a website you use, replay it offline. Experience the workflow firsthand.
+    \item \textbf{Identify valuable tasks in your domain.} What browser workflows would genuinely save time or money if automated? These are candidates for capture.
+    \item \textbf{Contribute to shared infrastructure.} Submit captured environments to public registries. Report issues with capture tooling. Propose improvements to post-processing pipelines.
+    \item \textbf{Advocate within your organization.} If you work at a lab with access to commercial environments, advocate for releasing research subsets or contributing to open alternatives.
 \end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -527,16 +598,16 @@ TRACE includes a minimal evaluation runner: (1) load capture bundle and configur
 \vskip 0.1in
 \centering
 \small
-\begin{tabular}{@{}clccccccccc@{}}
+\begin{tabular}{@{}clcccccccccc@{}}
 \toprule
-\textbf{Task} & \textbf{Website} & \textbf{Type} & \textbf{Clicks} & \textbf{Tools} & \textbf{Creds} & \textbf{HTTP} & \textbf{Cache} & \textbf{Shots} & \textbf{Time(s)} & \textbf{Size} \\
+\textbf{Task} & \textbf{Website} & \textbf{Type} & \textbf{Clicks} & \textbf{Tools} & \textbf{Creds} & \textbf{HTTP} & \textbf{Cache} & \textbf{Shots} & \textbf{DOM} & \textbf{Time(s)} & \textbf{Size} \\
 \midrule
-1 & github.com & Action & 11 & 8 & Yes & 715 & 311 & 12 & 39.0 & 64 MB \\
-2 & amazon.com & Action & 14 & 11 & Yes & 1,199 & 468 & 20 & 69.2 & 94 MB \\
-3 & ultimate-guitar.com & Action & 19 & 15 & Yes & 2,752 & 534 & 20 & 54.9 & 117 MB \\
-4 & uniqlo.com & Action & 11 & 10 & No & 1,315 & 783 & 12 & 46.1 & 128 MB \\
-5 & kayak.com & Info & 14 & 11 & No & 816 & 452 & 32 & 110.7 & 154 MB \\
-6 & airbnb.com & Info & 15 & 12 & No & 928 & 544 & 24 & 103.9 & 106 MB \\
+1 & github.com & Action & 11 & 8 & Yes & 715 & 311 & 12 & 35 & 39.0 & 64 MB \\
+2 & amazon.com & Action & 14 & 11 & Yes & 1,199 & 468 & 20 & 31 & 69.2 & 94 MB \\
+3 & ultimate-guitar.com & Action & 19 & 15 & Yes & 2,752 & 534 & 20 & 46 & 54.9 & 117 MB \\
+4 & uniqlo.com & Action & 11 & 10 & No & 1,315 & 783 & 12 & 12 & 46.1 & 128 MB \\
+5 & kayak.com & Info & 14 & 11 & No & 816 & 452 & 32 & 17 & 110.7 & 154 MB \\
+6 & airbnb.com & Info & 15 & 12 & No & 928 & 544 & 24 & 19 & 103.9 & 106 MB \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -545,17 +616,18 @@ TRACE includes a minimal evaluation runner: (1) load capture bundle and configur
 \begin{itemize}
     \item \textbf{Clicks:} Number of click events recorded
     \item \textbf{Tools:} Number of high-level tool calls after post-processing
-    \item \textbf{Creds:} Whether the task involved credential entry
-    \item \textbf{HTTP:} Total HTTP request/response pairs (before filtering)
+    \item \textbf{Creds:} Whether the task involved credential entry (login flows)
+    \item \textbf{HTTP:} Total HTTP request/response pairs in HAR file (before ignore-list filtering)
     \item \textbf{Cache:} Number of cached static resources
     \item \textbf{Shots:} Number of screenshots captured
-    \item \textbf{Time(s):} Task execution duration in seconds
+    \item \textbf{DOM:} Number of DOM/accessibility snapshots captured
+    \item \textbf{Time(s):} Task execution duration in seconds (successful run only)
     \item \textbf{Size:} Total capture bundle size on disk
 \end{itemize}
 
-\paragraph{Aggregate totals:} Total HTTP requests: 7,725; Total cached resources: 3,092; Total screenshots: 120; Total storage: 663 MB.
+\paragraph{Aggregate totals:} Total HTTP requests: 7,725 (before filtering; $\sim$50\% discarded by ignore-list); Total cached resources: 3,092; Total screenshots: 120; Total DOM snapshots: 160; Total storage: 663 MB.
 
-\paragraph{Note on collection time:} The Time(s) column reflects successful execution duration. Actual collection effort averages $\sim$6:40 per task accounting for retries. The six-task dataset required about 40 minutes total.
+\paragraph{Note on collection time:} The Time(s) column reflects the duration of a successful task execution. Actual collection effort is approximately 6:40 per task when accounting for retries due to collection errors, website issues, or mistakes during demonstration. The six-task dataset required about 40 minutes of total collection time.
 
 \subsection{Task Descriptions}
 
@@ -570,6 +642,19 @@ TRACE includes a minimal evaluation runner: (1) load capture bundle and configur
 \textbf{Task 5: Kayak (Information Retrieval).} Search flights with constraints, apply filters, compare results. Exercises travel search with complex filtering.
 
 \textbf{Task 6: Airbnb (Information Retrieval).} Search accommodations with filters, browse listings with map interaction. Exercises map-based search with filtering.
+
+\subsection{Observations}
+
+Several patterns emerge from the collected data:
+
+\begin{enumerate}
+    \item \textbf{HTTP traffic scales with site complexity.} Ultimate Guitar generated the most HTTP requests (2,752), likely due to media-heavy content and third-party integrations. Travel sites (Kayak, Airbnb) had moderate traffic despite complex UIs.
+    \item \textbf{Bundle size correlates with cached resources.} Uniqlo and Kayak, despite different task types, both required substantial cached resources (783 and 452 respectively), resulting in larger bundle sizes.
+    \item \textbf{Authenticated tasks were faster.} Tasks 1--3 (authenticated) averaged 54.4 seconds, while tasks 5--6 (information retrieval, unauthenticated) averaged 107.3 seconds. This likely reflects the more exploratory nature of information retrieval tasks.
+    \item \textbf{DOM snapshot frequency varies by interaction pattern.} Ultimate Guitar (46 snapshots) and GitHub (35 snapshots) had higher snapshot counts due to more frequent triggering events (clicks, form submissions).
+\end{enumerate}
+
+Even accounting for retries and mistakes, total collection effort for all six environments was approximately 40 minutes ($\sim$6:40 per task), demonstrating the efficiency of capture-replay compared to handcrafted environment construction which can require hours or days per task.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -588,6 +673,8 @@ This appendix proposes guidelines for responsible capture and distribution of br
 
 \subsection{Privacy and Data Protection}
 
+Captures contain personal data requiring attention under GDPR/CCPA:
+
 \begin{enumerate}
     \item \textbf{Informed consent.} Demonstrators should consent to capture and distribution.
     \item \textbf{PII detection and redaction.} Post-processing should detect and redact names, emails, addresses, financial data, and government identifiers.
@@ -597,15 +684,15 @@ This appendix proposes guidelines for responsible capture and distribution of br
 
 \subsection{Security Risks}
 
-\paragraph{Credential exposure.} Captures may contain passwords, session cookies, API keys. Mitigations: mandatory credential extraction, secure storage, credential rotation after capture, preference for short-lived tokens.
+\paragraph{Credential exposure.} Captures may contain passwords, session cookies, API keys, and tokens. Mitigations: mandatory credential extraction, secure storage, credential rotation after capture, and preference for short-lived tokens.
 
-\paragraph{Vulnerability disclosure.} Captures may reveal security flaws. Review captures before distribution; establish responsible disclosure procedures.
+\paragraph{Vulnerability disclosure.} Captures may reveal security flaws. Review captures before distribution; establish responsible disclosure procedures; withhold captures revealing serious vulnerabilities.
 
 \subsection{Misuse Potential}
 
-Capture-replay has dual-use risks. Environments could train agents for automated fraud, credential stuffing, or phishing.
+Capture-replay has dual-use risks. Environments could train agents for automated fraud, credential stuffing, phishing, or surveillance.
 
-\paragraph{Mitigations:} Access controls for sensitive domains; licensing that prohibits malicious applications; consider whether certain environment types should be captured at all; tiered access balances openness with responsibility.
+\paragraph{Mitigations:} Access controls for sensitive domains (finance, healthcare, government); licensing that prohibits malicious applications; consider whether certain environment types (payment completion, account creation) should be captured at all; tiered access balances openness with responsibility.
 
 \paragraph{Our view:} Proprietary concentration does not eliminate misuse risk; it prevents independent safety research. Transparent infrastructure enables collective norm development.
 
@@ -635,8 +722,12 @@ Capture-replay has dual-use risks. Environments could train agents for automated
     \item \textbf{Enterprise SaaS:} Obtain written authorization from system owners
 \end{itemize}
 
+\subsection{Community Infrastructure}
+
+We call for: shared registries with access controls (e.g., Hugging Face), open-source compliance tooling (PII detection, credential extraction), community review for sensitive domains, and incident response procedures.
+
 \subsection{Limitations}
 
-These guidelines are not legal advice, cannot anticipate all risks, and depend on community adoption. Despite limitations, explicit guidelines are preferable to the implicit norms around replicas.
+These guidelines are not legal advice, cannot anticipate all risks, and depend on community adoption. Strict controls may recreate capability concentration. Despite limitations, explicit guidelines are preferable to the implicit norms around replicas, which sidestep these questions entirely.
 
 \end{document}
