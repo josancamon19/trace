@@ -41,7 +41,7 @@
 \graphicspath{{../figures/}{figures/}}
 
 % Short running title (must be in preamble, before \begin{document})
-\icmltitlerunning{Position: Web Agent Research Needs Capture-Replay Infrastructure}
+\icmltitlerunning{Position: Capture-Replay Infrastructure, Not Handcrafted Replicas}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DOCUMENT START
@@ -52,7 +52,7 @@
 \sloppy
 
 \twocolumn[
-\icmltitle{Position: Web Agent Research Needs Capture-Replay Infrastructure,\\Not More Handcrafted Replicas}
+\icmltitle{Position: Web Agent Research Needs Capture-Replay Infrastructure,\\Not Handcrafted Replicas}
 
 % For submission (anonymous)
 \icmlsetsymbol{equal}{*}
@@ -78,7 +78,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{abstract}
-\textbf{This is a position paper.} Building realistic web agent environments is extraordinarily expensive; TheAgentCompany required 3,000 person-hours for 175 tasks. This cost barrier has spawned a proprietary ecosystem where well-funded labs train on environments they cannot share, splitting the field into haves and have-nots. We argue this trajectory is unsustainable: the community should replace handcrafted website replicas with capture-replay infrastructure. A single expert demonstration, recorded on a live website, can produce a complete offline environment in minutes. We present TRACE, a proof-of-concept that captures production sites including authenticated flows, and validate scalability: 77 tasks collected in under 11 hours, a \textbf{120$\times$ reduction} in marginal time compared to replica construction. Capture-replay has real limitations; agents that deviate from recorded trajectories encounter missing responses. But these are coverage problems solvable by collecting more trajectories, not by building more replicas. We call on the community to stop investing in handcrafted environments and redirect that effort toward capture tooling, large-scale collection, and open sharing. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
+\textbf{This is a position paper.} Building realistic web agent environments is extraordinarily expensive; TheAgentCompany required 3,000 person-hours for 175 tasks. This cost barrier has spawned a proprietary ecosystem where well-funded labs train on environments they cannot share, splitting the field into haves and have-nots. We argue this trajectory is unsustainable: the community should replace handcrafted website replicas with capture-replay infrastructure. A single expert demonstration, recorded on a live website, can produce a complete offline environment in minutes. We present TRACE, a proof-of-concept that captures production sites including authenticated flows, and validate scalability: 6 fully replayable environments captured in 40 minutes ($\sim$7 min/task), plus 71 tasks collected in a pilot study, representing a \textbf{120$\times$ reduction} in marginal time compared to replica construction. Capture-replay has real limitations; agents that deviate from recorded trajectories encounter missing responses. But these are coverage problems solvable by collecting more trajectories, not by building more replicas. We call on the community to stop investing in handcrafted environments and redirect that effort toward capture tooling, large-scale collection, and open sharing. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
 \end{abstract}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -120,9 +120,10 @@ TheAgentCompany & $\sim$175 & \textbf{3,000 person-hours} by 21 \\
 REAL & $\sim$112 & Deterministic replicas of 11 real \\
  & & websites with custom harnesses \\
 \midrule
-\textbf{TRACE (ours)} & \textbf{77} & \textbf{310 hours}: 300 tooling + \\
- & & 10.7 collection ($\sim$8 min/task) \\
+\textbf{TRACE (ours)} & \textbf{6}$^{\dagger}$ & \textbf{300.7 hours}: 300 tooling + \\
+ & & 0.7 collection ($\sim$7 min/task) \\
 \bottomrule
+\multicolumn{3}{@{}l@{}}{\footnotesize $^{\dagger}$Fully replayable; 71 additional tasks collected in pilot (Sec.~\ref{sec:pilot}).} \\
 \end{tabular}
 \end{table}
 
@@ -148,7 +149,7 @@ The core idea is simple: rather than handcrafting website replicas, we record an
 
 Capture-replay is not a new concept in software engineering. Record-and-replay debugging, network mocking, and browser automation testing have used similar techniques for decades. But its application to web agent research has been surprisingly limited. We argue this represents a significant missed opportunity.
 
-To demonstrate feasibility, we developed TRACE (Trajectory Recording and Capture Environments), an open-source capture-replay pipeline. Building robust tooling required approximately 300 hours of engineering effort: analyzing hundreds of captured sessions, developing URL canonicalization heuristics, and iterating on replay matching. But once built, the tooling amortizes: we captured six diverse environments (GitHub, Amazon, Airbnb, Kayak, Uniqlo, Ultimate Guitar) in approximately 40 minutes of total collection time, including retries and quality checks. A separate pilot study collected 71 additional tasks in 10 hours. This is roughly 8 minutes per task versus the 17+ hours per task reported for handcrafted benchmarks like TheAgentCompany, representing a \textbf{120$\times$ reduction in marginal collection time}.
+To demonstrate feasibility, we developed TRACE (Trajectory Recording and Capture Environments), an open-source capture-replay pipeline. Building robust tooling required approximately 300 hours of engineering effort: analyzing hundreds of captured sessions, developing URL canonicalization heuristics, and iterating on replay matching. But once built, the tooling amortizes: we captured six diverse environments (GitHub, Amazon, Airbnb, Kayak, Uniqlo, Ultimate Guitar) in approximately 40 minutes of total collection time, including retries and quality checks. A separate pilot study collected 71 additional tasks in 10 hours. This is roughly 7--8 minutes per task versus the 17+ hours per task reported for handcrafted benchmarks like TheAgentCompany, representing a \textbf{120$\times$ reduction in marginal collection time}.
 
 We emphasize ``replace'' deliberately. Handcrafted replicas consume scarce human capital but are not required to achieve determinism, controlled variation, or breadth. Those properties can be achieved by capture-replay at scale through multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. We have not yet demonstrated these techniques; our proof-of-concept validates single-trajectory capture and replay. But the economics favor building this infrastructure: even if adequate coverage requires 10 trajectories per task, that is still an order of magnitude cheaper than replica construction.
 
@@ -260,7 +261,7 @@ This approach offers three structural advantages. First, \textbf{scalability}: a
 
 Second, \textbf{economic grounding}: captured environments reflect real tasks by construction. When an expert books an actual flight or configures a real SaaS tool, the resulting environment captures a workflow someone demonstrably values. This contrasts with replica-based benchmarks where researchers imagine valuable tasks and then construct environments to support them. Capture-replay inverts this: \textbf{find people doing economically valuable work, record them, and build environments from their actual workflows.}
 
-Third, \textbf{democratization}: open-source capture-replay tooling breaks the concentration of environment access. Any researcher with a browser can record environments from any website they can access, with no proprietary infrastructure, licensing fees, or vendor lock-in. TRACE is released as open-source software with captured environments published on a public dataset host (URLs redacted for review).
+Third, \textbf{democratization}: open-source capture-replay tooling breaks the concentration of environment access. Any researcher with a browser can record environments from any website they can access, with no proprietary infrastructure, licensing fees, or vendor lock-in. TRACE is released as open-source software with captured environments published on Hugging Face.\footnote{Code and data will be released publicly upon acceptance.}
 
 \subsection{TRACE: A Proof of Concept}
 
@@ -283,7 +284,7 @@ To validate that capture-replay scales beyond proof-of-concept, we conducted a p
 
 \paragraph{Why this matters.} The pilot illustrates a key property of capture-replay that replicas lack: \textbf{collection failures are cheap}. When handcrafted replica construction fails, weeks of engineering effort may be lost. When capture fails, recollection costs minutes. The 71-task pilot ``failed'' in the sense that those specific captures require substantial refactoring to be replayable, but the collection time investment was 10 hours, not 3,000. We can simply recollect with improved tooling.
 
-\paragraph{Cost comparison.} Table~\ref{tab:cost-comparison} presents a direct comparison of environment construction costs across methodologies. We use TheAgentCompany as a proxy because they transparently reported costs, a practice we commend and encourage. We acknowledge this comparison has caveats: TheAgentCompany is a desktop/computer-use benchmark (not web-only), and their 3,000 hours includes custom programmatic evaluation functions, not just environment construction. TRACE uses LLM-as-a-judge for checkpoint evaluation, which requires less per-task engineering but may differ in evaluation precision. Despite these differences, the order-of-magnitude gap in marginal collection time (17 hours vs.\ 8 minutes) reflects a real structural difference between handcrafted and capture-replay approaches.
+\paragraph{Cost comparison.} Table~\ref{tab:cost-comparison} presents a direct comparison of environment construction costs across methodologies. We use TheAgentCompany as a proxy because they transparently reported costs, a practice we commend and encourage. We acknowledge this comparison has caveats: TheAgentCompany is a desktop/computer-use benchmark (not web-only), and their 3,000 hours includes custom programmatic evaluation functions, not just environment construction. TRACE uses LLM-as-a-judge for checkpoint evaluation, which requires less per-task engineering but may differ in evaluation precision. Despite these differences, the order-of-magnitude gap in marginal collection time (17 hours vs.\ 7 minutes) reflects a real structural difference between handcrafted and capture-replay approaches.
 
 \begin{table}[t]
 \caption{Cost comparison: handcrafted replicas vs.\ capture-replay. Replicas have high per-task costs; capture-replay has high fixed costs but near-zero marginal costs.}
@@ -295,12 +296,12 @@ To validate that capture-replay scales beyond proof-of-concept, we conducted a p
 & \textbf{TheAgentCompany} & \textbf{TRACE (ours)} \\
 & \textbf{(Replicas)} & \textbf{(Capture-Replay)} \\
 \midrule
-Tasks created & 175 & 77 \\
+Tasks created & 175 & 6 (+ 71 pilot)\textsuperscript{$\star$} \\
 Fixed costs (tooling) & included & 300 hrs \\
-Collection/build time & 3,000 hrs\textsuperscript{\ddag} & 10.7 hrs \\
+Collection/build time & 3,000 hrs\textsuperscript{\ddag} & 0.7 hrs (+ 10 pilot) \\
 \midrule
-\textbf{Time per task} & 17.1 hrs & \textbf{0.14 hrs (8 min)} \\
-\textbf{Cost per task}\textsuperscript{\dag} & \$855 & \textbf{\$0.56} \\
+\textbf{Time per task} & 17.1 hrs & \textbf{$\sim$7 min} \\
+\textbf{Cost per task}\textsuperscript{\dag} & \$855 & \textbf{\$0.47} \\
 \midrule
 Speedup factor & n/a & \textbf{120$\times$} \\
 Break-even point\textsuperscript{*} & n/a & $\sim$35 tasks \\
@@ -308,6 +309,7 @@ Break-even point\textsuperscript{*} & n/a & $\sim$35 tasks \\
 \end{tabular}
 \begin{minipage}{\columnwidth}
 \footnotesize
+\textsuperscript{$\star$}6 fully replayable; 71 pilot tasks collected but require format migration.\\
 \textsuperscript{\ddag}Includes custom programmatic checkpoint evaluators; TRACE uses LLM-as-a-judge.\\
 \textsuperscript{\dag}Replica cost assumes \$50/hr engineering rate; capture-replay uses \$4/hr collection rate.\\
 \textsuperscript{*}Break-even assumes \$30k tooling investment (300 hrs $\times$ \$100/hr).
@@ -334,7 +336,7 @@ A position paper must engage seriously with opposing views. We address the most 
 
 However, this is a \textbf{coverage problem, not a methodology problem}. The solution is more trajectories, not handcrafted replicas. \textbf{Multi-trajectory collection} captures multiple expert paths through the same task, providing recovery behaviors and alternatives. \textbf{Record-on-miss expansion} adds missing branches by capturing additional sessions when agents deviate. The question is not whether capture-replay can support agent exploration, but how many trajectories are needed.
 
-Crucially, the economics still favor capture-replay. Even if a task requires 10 trajectories to achieve adequate coverage, that represents roughly 80 minutes of collection time (10 $\times$ 8 min), compared to 17+ hours for a single handcrafted replica. The 120$\times$ cost advantage shrinks but remains substantial. We have not yet demonstrated multi-trajectory collection at scale; this is future work. But the economic argument for investing in capture infrastructure rather than replica construction holds regardless.
+Crucially, the economics still favor capture-replay. Even if a task requires 10 trajectories to achieve adequate coverage, that represents roughly 70 minutes of collection time (10 $\times$ 7 min), compared to 17+ hours for a single handcrafted replica. The 120$\times$ cost advantage shrinks but remains substantial. We have not yet demonstrated multi-trajectory collection at scale; this is future work. But the economic argument for investing in capture infrastructure rather than replica construction holds regardless.
 
 \subsection{``Legal and ethical concerns around captured content''}
 
@@ -436,7 +438,7 @@ Capture-replay offers a path forward: fast collection from real work, economic g
 \section{TRACE Implementation Details}
 \label{app:implementation}
 
-This appendix provides technical details on the TRACE implementation for researchers interested in understanding, extending, or reproducing the system. The complete source code is available at a URL redacted for double-blind review.
+This appendix provides technical details on the TRACE implementation for researchers interested in understanding, extending, or reproducing the system. The complete source code is available at the anonymous repository linked in Section~\ref{sec:case}.
 
 \begin{figure}[h]
 \centering
@@ -651,7 +653,7 @@ Playwright HAR & Strict or glob pattern & Basic wildcards & No & E2E test mockin
 \section{Captured Environment Statistics}
 \label{app:statistics}
 
-This appendix provides detailed statistics on the six demonstration environments released with TRACE. All environments are available at a URL redacted for double-blind review. Statistics are reproduced from our proof-of-concept dataset collection.
+This appendix provides detailed statistics on the six demonstration environments released with TRACE. All environments are available at the anonymous dataset repository linked in Section~\ref{sec:case}. Statistics are reproduced from our proof-of-concept dataset collection.
 
 \begin{table*}[t]
 \caption{Complete statistics for the six captured demonstration environments.}
