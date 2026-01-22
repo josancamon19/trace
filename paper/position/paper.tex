@@ -48,6 +48,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
+\raggedbottom
+\sloppy
 
 \twocolumn[
 \icmltitle{Position: Web Agent Research Needs Capture-Replay Infrastructure,\\Not More Handcrafted Replicas}
@@ -100,10 +102,9 @@ This is not an oversight. It reflects a fundamental constraint: \textbf{handcraf
 
 Consider the costs documented in recent benchmark papers:
 
-\begin{table}[h]
+\begin{table}[t]
 \caption{Environment construction costs for prominent benchmarks.}
 \label{tab:costs}
-\vskip 0.1in
 \centering
 \small
 \begin{tabular}{@{}lrl@{}}
@@ -263,34 +264,11 @@ Capture-replay inverts the environment construction process. Rather than buildin
 
 TRACE extends these foundations with a \textbf{multi-tier matching system} designed for the non-determinism inherent in web agent evaluation: (1) exact URL matching when possible, (2) character-frequency similarity scoring for URLs with dynamic query parameters, and (3) LLM-based disambiguation when multiple candidates remain. Crucially, TRACE tracks which HAR entries have been consumed to prevent response reuse, which is essential for flows where the same URL is requested multiple times with different expected responses (e.g., login then authenticated requests). These additions address the gap between unit-test mocking, which assumes deterministic request sequences, and agent evaluation, where exploration creates novel request orderings.
 
-This approach offers several structural advantages:
+This approach offers three structural advantages. First, \textbf{scalability}: a single expert demonstration produces a complete environment in the time it takes to perform the task. Our proof-of-concept captured six diverse tasks in about 40 minutes total (6:40 per task), each producing hundreds of HTTP responses and dozens of DOM snapshots that would require days to handcraft. At these speeds, a single researcher could produce hundreds of environments per week, crowdsourced collection becomes feasible, and any site an expert can use becomes a potential environment.
 
-\subsection{Advantage 1: Scalability}
+Second, \textbf{economic grounding}: captured environments reflect real tasks by construction. When an expert books an actual flight or configures a real SaaS tool, the resulting environment captures a workflow someone demonstrably values. This contrasts with replica-based benchmarks where researchers imagine valuable tasks and then construct environments to support them. Capture-replay inverts this: \textbf{find people doing economically valuable work, record them, and build environments from their actual workflows.}
 
-The most significant advantage of capture-replay is speed. \textbf{A single expert demonstration produces a complete environment in the time it takes to perform the task.}
-
-Our proof-of-concept implementation (TRACE) captured six diverse tasks across GitHub, Amazon, Airbnb, Kayak, Uniqlo, and Ultimate Guitar in about 40 minutes of total collection time including retries (about 6:40 per task). Each capture produced hundreds of HTTP responses, dozens of DOM snapshots, and complete interaction logs, artifacts that would require days or weeks to handcraft.
-
-This changes the economics of environment construction fundamentally. At capture-replay speeds:
-\begin{itemize}
-    \item A single researcher could produce hundreds of environments per week
-    \item Crowdsourced collection becomes feasible (we built a desktop app for non-technical collectors)
-    \item The long tail of websites becomes accessible: any site an expert can use can become an environment
-\end{itemize}
-
-\subsection{Advantage 2: Economic Grounding}
-
-Capture-replay environments are grounded in real tasks by construction. When an expert books an actual flight, configures a real SaaS tool, or completes a genuine e-commerce transaction, the resulting environment captures a workflow that someone demonstrably values enough to perform.
-
-This contrasts with the synthetic task design required for replica-based benchmarks, where researchers must imagine what tasks would be valuable and then construct environments to support them. The imagination often falls short of reality: we design tasks we can evaluate rather than tasks that matter.
-
-Capture-replay enables a different paradigm: \textbf{find people doing economically valuable work, record them, and build environments from their actual workflows.} This could connect web agent research more directly to real productivity gains.
-
-\subsection{Advantage 3: Democratization}
-
-Open-source capture-replay tooling can break the concentration of environment access. Any researcher with a browser can record environments from any website they can access. No proprietary infrastructure required, no licensing fees, no vendor lock-in.
-
-This is not merely theoretical. TRACE is released as open-source software (URL redacted for double-blind review), and its captured environments are published on a public dataset host (URL redacted for double-blind review). The tooling is designed for extensibility: researchers can adapt it to their domains, contribute improvements, and build shared infrastructure without depending on commercial providers.
+Third, \textbf{democratization}: open-source capture-replay tooling breaks the concentration of environment access. Any researcher with a browser can record environments from any website they can access, with no proprietary infrastructure, licensing fees, or vendor lock-in. TRACE is released as open-source software with captured environments published on a public dataset host (URLs redacted for review).
 
 \subsection{TRACE: A Proof of Concept}
 
@@ -315,10 +293,9 @@ To validate that capture-replay scales beyond proof-of-concept, we conducted a p
 
 \paragraph{Cost comparison.} Table~\ref{tab:cost-comparison} presents a direct comparison of environment construction costs across methodologies. We use TheAgentCompany as a proxy because they transparently reported costs, a practice we commend and encourage. We acknowledge this comparison has caveats: TheAgentCompany is a desktop/computer-use benchmark (not web-only), and their 3,000 hours includes custom programmatic evaluation functions, not just environment construction. TRACE uses LLM-as-a-judge for checkpoint evaluation, which requires less per-task engineering but may differ in evaluation precision. Despite these differences, the order-of-magnitude gap in marginal collection time (17 hours vs.\ 8 minutes) reflects a real structural difference between handcrafted and capture-replay approaches.
 
-\begin{table}[h]
+\begin{table}[t]
 \caption{Cost comparison: handcrafted replicas vs.\ capture-replay. Replicas have high per-task costs; capture-replay has high fixed costs but near-zero marginal costs.}
 \label{tab:cost-comparison}
-\vskip 0.1in
 \centering
 \small
 \begin{tabular}{@{}lcc@{}}
@@ -337,7 +314,6 @@ Speedup factor & n/a & \textbf{120$\times$} \\
 Break-even point\textsuperscript{*} & n/a & $\sim$35 tasks \\
 \bottomrule
 \end{tabular}
-\vskip 0.05in
 \begin{minipage}{\columnwidth}
 \footnotesize
 \textsuperscript{\ddag}Includes custom programmatic checkpoint evaluators; TRACE uses LLM-as-a-judge.\\
@@ -412,13 +388,13 @@ The pilot's captures require refactoring to match TRACE's current HAR-based form
 
 We acknowledge several technical limitations:
 
-\paragraph{Single-trajectory coverage.} The current TRACE demonstration uses single-trajectory captures. We validated replay correctness via human traversal: a human following the recorded trajectory receives correct responses for all requests, with character-based matching and LLM disambiguation handling dynamic URL parameters. However, we have not validated agent evaluation, where deviation from recorded paths is common. Supporting agent exploration requires multi-trajectory collection or record-on-miss expansion, which we describe conceptually but have not implemented. This is the most significant gap between our proof-of-concept and production-ready infrastructure.
+\paragraph{Single-trajectory coverage.} The current TRACE demonstration uses single-trajectory captures, validated via human traversal. We have not validated agent evaluation, where deviation from recorded paths causes missing responses. Supporting agent exploration requires multi-trajectory collection, which we propose but have not implemented—the most significant gap between our proof-of-concept and production-ready infrastructure.
 
 \paragraph{LLM-based matching non-determinism.} TRACE uses LLM disambiguation when multiple responses match a request. This is a proof-of-concept convenience; production systems should default to deterministic matching via URL canonicalization and strict tie-breakers.
 
-\paragraph{Anti-automation resistance.} Websites deploy CAPTCHAs, bot detection, and fingerprinting. We found many high-value sites capturable with sufficient engineering, and replay is easier than capture (offline replay avoids triggering anti-bot measures). This is an ongoing arms race, but a practical obstacle rather than fundamental barrier.
+\paragraph{Anti-automation resistance.} Websites deploy CAPTCHAs, bot detection, and fingerprinting. We found many high-value sites capturable with sufficient engineering, and replay is easier than capture since offline replay avoids triggering anti-bot measures entirely. This is an ongoing arms race, but a practical obstacle rather than a fundamental methodological barrier.
 
-\paragraph{Temporal validity.} Captures are snapshots; a task replayed after capture may encounter mismatches as dynamic content diverges. Our validation revealed this concretely: Airbnb search (Task 6), replayed weeks after capture, required LLM disambiguation for 25\% of requests because date-dependent API calls no longer matched recorded entries (see Appendix~\ref{app:statistics} for full breakdown). Kayak search (Task 5), despite similar datepicker interaction, achieved 90\% deterministic matching because its URLs encode dates less pervasively. Static workflows like GitHub authentication (Task 1) achieved 99.9\% deterministic matching regardless of replay timing. This suggests practical mitigations: prioritize recapture for date-sensitive tasks, or implement date-aware URL normalization. Replica-based benchmarks face analogous drift (WebArena's Reddit clone does not track actual Reddit evolution), but capture-replay makes the issue explicit and measurable.
+\paragraph{Temporal validity.} Captures are snapshots; replaying a task after capture may encounter mismatches as dynamic content diverges. Date-sensitive tasks (e.g., travel search) degrade faster than static workflows (e.g., authentication); see Appendix~\ref{app:statistics} for validation data showing this variance. Practical mitigations include periodic recapture and date-aware URL normalization. Replica-based benchmarks face analogous drift but hide it; capture-replay makes temporal validity explicit and measurable.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SECTION 5: CALL TO ACTION
@@ -427,45 +403,15 @@ We acknowledge several technical limitations:
 \section{Call to Action}
 \label{sec:call}
 
-We conclude with specific recommendations:
+We call on the community to make four shifts:
 
-\subsection{For Research Groups and Open-Source LM Companies}
+\textbf{Stop building replicas; invest in capture tooling.} Every hour spent handcrafting a website replica is an hour not spent on agent research. Redirect engineering effort toward capture-replay infrastructure that can produce environments 120$\times$ faster. Research groups with domain expertise (finance, healthcare, enterprise SaaS) should capture environments in their areas rather than waiting for generalist benchmarks.
 
-\begin{enumerate}
-    \item \textbf{Redirect resources away from replica construction.} Stop building new handcrafted replicas and invest in capture-replay tooling and collection capacity.
-    \item \textbf{Collect domain-specific environments.} Research groups with domain expertise (finance, healthcare, enterprise software) can capture environments difficult for generalist teams.
-    \item \textbf{Publish captured environments with safeguards.} Share environments under research-use licenses with credential substitution and PII redaction. Document capture methodology for reproducibility.
-    \item \textbf{Expand capture breadth.} Use record-on-miss, multi-trajectory collection, and replay-time perturbations to expand exploration latitude without handcrafted replicas.
-\end{enumerate}
+\textbf{Document construction costs transparently.} TheAgentCompany's disclosure of 3,000 person-hours set a valuable precedent. All benchmark papers should report environment construction effort to enable informed methodology comparisons.
 
-\subsection{For Benchmark Creators}
+\textbf{Share captured environments openly.} Publish environments under research-use licenses with credential substitution and PII redaction. Establish centralized registries (Hugging Face or similar) to reduce duplication and broaden access. The goal is shared infrastructure, not proprietary advantage.
 
-\begin{enumerate}
-    \item \textbf{Document environment construction costs.} Transparent reporting of person-hours, like TheAgentCompany's exemplary disclosure, enables informed methodology comparisons. We recommend all benchmark papers include this information.
-    \item \textbf{Adopt capture-replay for evaluation suites.} Replace new replica-based benchmarks with capture-replay collections to scale coverage and enable deeper error analysis.
-    \item \textbf{Plan migrations from replicas.} For existing replica-based suites, publish a capture-replay transition plan and a timeline for deprecating handcrafted environments.
-    \item \textbf{Establish shared infrastructure.} Coordinate on common tooling, formats, and distribution mechanisms for captured environments to reduce duplication and enable interoperability.
-\end{enumerate}
-
-\subsection{For the Broader Community}
-
-\begin{enumerate}
-    \item \textbf{Adopt and refine ethical guidelines for environment capture.} We propose comprehensive guidelines in Appendix~\ref{app:ethics} addressing consent frameworks, legal considerations, privacy protections, security risks, and domain-specific requirements. Community discussion should refine and formalize these norms.
-    \item \textbf{Create registries of captured environments.} Centralized, searchable collections would reduce duplication and enable broader access. Hugging Face and similar platforms could host these.
-    \item \textbf{Pressure commercial providers toward openness.} Encourage environment platforms to release subsets of their collections for research use, or to adopt open standards that reduce lock-in.
-    \item \textbf{Investigate legal frameworks.} Clearer understanding of copyright, ToS, and data protection implications would benefit the entire field. Legal scholarship on AI training data has relevant precedents.
-\end{enumerate}
-
-\subsection{Concrete Next Steps}
-
-For those convinced by our argument, we suggest immediate actions:
-
-\begin{enumerate}
-    \item \textbf{Try TRACE.} Clone the repository, capture an environment from a website you use, replay it offline. Experience the workflow firsthand.
-    \item \textbf{Identify valuable tasks in your domain.} What browser workflows would genuinely save time or money if automated? These are candidates for capture.
-    \item \textbf{Contribute to shared infrastructure.} Submit captured environments to public registries. Report issues with capture tooling. Propose improvements to post-processing pipelines.
-    \item \textbf{Advocate within your organization.} If you work at a lab with access to commercial environments, advocate for releasing research subsets or contributing to open alternatives.
-\end{enumerate}
+\textbf{Develop community norms for ethical capture.} We propose guidelines in Appendix~\ref{app:ethics} addressing consent frameworks, legal considerations, and privacy protections. The community should refine these norms through open discussion, balancing research value against potential harms.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SECTION 6: CONCLUSION
