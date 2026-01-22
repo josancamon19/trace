@@ -200,7 +200,7 @@ Several patterns emerge from this analysis:
 
 \paragraph{Pattern 4: Domain concentration.} Existing benchmarks heavily favor a small set of domains: e-commerce, content management, developer tools, and travel booking appear repeatedly, while vast categories of economically important web work (financial services, healthcare portals, government services, enterprise SaaS, professional services) remain largely uncovered.
 
-\paragraph{Pattern 5: The live-web evaluation problem.} Benchmarks that evaluate on live websites (Mind2Web \citep{zhang2023mind2web}, BrowseComp \citep{wei2025browsecomp}, BEARCUBS \citep{song2025bearcubs}, WebVoyager \citep{he2024webvoyager}) face continuous validity challenges as the web changes. Those that avoid this through replicas (WebArena \citep{zhou2023webarena}, REAL \citep{garg2025real}) gain reproducibility but lose coverage and realism.
+\paragraph{Pattern 5: The live-web evaluation problem.} Benchmarks that evaluate on live websites (Mind2Web \citep{zhang2023mind2web}, BrowseComp \citep{wei2025browsecomp}, BEARCUBS \citep{song2025bearcubs}, WebVoyager \citep{he2024webvoyager}) face continuous validity challenges as the web changes. Those that avoid this through replicas (WebArena \citep{zhou2023webarena}, REAL \citep{garg2025real}) gain reproducibility but lose coverage and realism. Moreover, sensitive operations (payments, authentication, account creation) cannot be retried freely without real consequences.
 
 \subsection{The Cost Structure of Environment Construction}
 
@@ -465,7 +465,7 @@ The context is configured with realistic defaults: 1366$\times$768 viewport, \te
 
 \paragraph{Event Recording.} The \texttt{Recorder} class captures events across multiple categories:
 
-\begin{table*}[h]
+\begin{table*}[t]
 \caption{Event categories captured by TRACE.}
 \small
 \centering
@@ -510,7 +510,7 @@ The post-processing pipeline transforms raw captures into clean, shareable artif
 
 \paragraph{Stage 1: Tool-Call Parsing.} Raw browser events are converted to a standardized Domain-Specific Language (DSL):
 
-\begin{table*}[h]
+\begin{table*}[t]
 \caption{Tool-call DSL mapping from browser events.}
 \small
 \centering
@@ -586,9 +586,9 @@ The replay module reconstructs captured sessions for offline evaluation through 
     \item \textbf{Exact Match:} The HAR file is searched for entries with identical method and URL base (scheme + host + path). If a single match exists, it is used directly.
     \item \textbf{Character-Based Matching:} For URLs with dynamic query parameters, a character-frequency similarity score is computed:
     \begin{equation*}
-    \text{score} = \sum_c \min(\text{target\_char\_count}[c], \text{candidate\_char\_count}[c])
+    \text{score} = \sum_c \min(\text{tgt}[c], \text{cand}[c])
     \end{equation*}
-    URLs are normalized before matching (removing timestamp parameters, sorting query strings). Candidates with >90\% character overlap and matching all target characters are treated as perfect matches.
+    where $\text{tgt}[c]$ and $\text{cand}[c]$ are the character counts for character $c$ in the target and candidate URLs respectively. URLs are normalized before matching (removing timestamp parameters, sorting query strings). Candidates with greater than 90\% character overlap and matching all target characters are treated as perfect matches.
     \item \textbf{LLM Disambiguation:} When multiple candidates remain after character-based filtering, the top-5 candidates (ranked by match score) are sent to an LLM for selection. The prompt provides: target request details (method, normalized URL, headers, POST data), candidate request details with response MIME types, and character match scores as additional context.
 \end{enumerate}
 
@@ -616,7 +616,7 @@ TRACE includes a minimal evaluation runner demonstrating integration with browse
 
 Table~\ref{tab:replay-comparison} compares TRACE's replay approach with existing HTTP record-replay tools. While these tools share the fundamental capture-replay paradigm, they differ significantly in request matching sophistication and intended use case.
 
-\begin{table*}[h]
+\begin{table*}[t]
 \caption{Comparison of HTTP record-replay tools. TRACE adds semantic matching capabilities designed for the non-determinism inherent in web agent evaluation.}
 \label{tab:replay-comparison}
 \vskip 0.1in
@@ -723,7 +723,7 @@ Even accounting for retries and mistakes, total collection effort for all six en
 
 To validate replay correctness, we manually traversed each captured environment following the original trajectory. Table~\ref{tab:replay-validation} reports matching outcomes across the multi-tier system.
 
-\begin{table*}[h]
+\begin{table*}[t]
 \caption{Replay matching breakdown for human traversal of captured environments. Deterministic matches require no LLM disambiguation; LLM-required matches were resolved correctly; failed matches had no suitable HAR entry.}
 \label{tab:replay-validation}
 \vskip 0.1in
