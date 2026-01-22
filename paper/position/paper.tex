@@ -392,7 +392,7 @@ The pilot's captures require refactoring to match TRACE's current HAR-based form
 
 \paragraph{The concern:} Research requiring controlled ablations or systematic variation needs handcrafted environments.
 
-\paragraph{Our response:} We disagree. Multi-trajectory collections provide alternative paths; post-processing enables controlled perturbations (DOM edits, resource swaps); deterministic replay provides reproducibility. We have not found research questions that strictly require handcrafted replicas.
+\paragraph{Our response:} We disagree. Multi-trajectory collections can provide alternative paths; post-processing can enable controlled perturbations (DOM edits, resource swaps); deterministic replay provides reproducibility. We have not found research questions that strictly require handcrafted replicas.
 
 \subsection{``Commercial providers validate the need for replicas''}
 
@@ -404,7 +404,7 @@ The pilot's captures require refactoring to match TRACE's current HAR-based form
 
 \paragraph{The concern:} RL training requires exploration and feedback from mistakes that captured environments cannot provide.
 
-\paragraph{Our response:} We see no fundamental barrier, only data scale challenges. Multi-trajectory capture provides a state-action graph suitable for offline RL; checkpoints enable graded rewards; expert demonstrations support imitation learning. The offline RL literature demonstrates learning from fixed datasets is viable.
+\paragraph{Our response:} We see no fundamental barrier, only data scale challenges. Multi-trajectory capture could provide a state-action graph suitable for offline RL; checkpoints enable graded rewards; expert demonstrations support imitation learning. The offline RL literature demonstrates learning from fixed datasets is viable.
 
 \textbf{Evaluation is the more urgent bottleneck.} Most academic groups cannot evaluate on realistic long-horizon tasks because environments do not exist. Capture-replay addresses this immediately.
 
@@ -476,7 +476,7 @@ For those convinced by our argument, we suggest immediate actions:
 
 The web agent research community has made real progress, but handcrafted replicas are now the bottleneck. They are slow and expensive to build, lock us into small, synthetic task sets, and collapse evaluation to binary success. As task horizons stretch to hours and days, replica construction becomes untenable, and the ecosystem splits into a two-tier system where only well-funded labs and product companies can afford realistic environments.
 
-Capture-replay replaces that bottleneck with fast, economically grounded environments collected from real work. Deterministic replay, multi-trajectory collection, and branching give us coverage and analysis depth without hand-built replicas. The remaining challenges are about collection logistics and responsible sharing, not environment engineering.
+Capture-replay replaces that bottleneck with fast, economically grounded environments collected from real work. Deterministic replay provides reproducibility; multi-trajectory collection and branching, not yet demonstrated but economically feasible, can provide the coverage and analysis depth that replicas offer without the construction cost. The remaining challenges are about collection scale and responsible sharing, not environment engineering.
 
 \textbf{Our position, restated:} The web agent research community should replace handcrafted replicas with capture-replay infrastructure. Stop building new replicas, invest in capture tooling and large-scale collection, and standardize sharing so long-horizon, economically valuable tasks become accessible to everyone. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
 
