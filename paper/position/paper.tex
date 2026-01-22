@@ -143,13 +143,13 @@ We believe this trajectory is problematic for the field. When the ability to tra
 
 \textbf{This paper argues for an alternative approach: capture-replay.}
 
-The core idea is simple: rather than handcrafting website replicas, we record an expert completing a task on a live website and transform that recording into a self-contained environment that can be replayed offline. A single expert demonstration (taking minutes to perform) produces a complete environment bundle including DOM states, network responses, screenshots, and interaction logs. Agents can then be evaluated (and potentially trained) against this frozen snapshot without contacting the live web.
+The core idea is simple: rather than handcrafting website replicas, we record an expert completing a task on a live website and transform that recording into a self-contained environment that can be replayed offline. A single expert demonstration (taking minutes to perform) produces a complete environment bundle including DOM states, network responses, screenshots, and interaction logs. Agents can then interact with this frozen snapshot without contacting the live web, with coverage expanding as additional trajectories are captured.
 
 Capture-replay is not a new concept in software engineering. Record-and-replay debugging, network mocking, and browser automation testing have used similar techniques for decades. But its application to web agent research has been surprisingly limited. We argue this represents a significant missed opportunity.
 
 To demonstrate feasibility, we developed TRACE (Trajectory Recording and Capture Environments), an open-source capture-replay pipeline. Building robust tooling required approximately 300 hours of engineering effort: analyzing hundreds of captured sessions, developing URL canonicalization heuristics, and iterating on replay matching. But once built, the tooling amortizes: we captured six diverse environments (GitHub, Amazon, Airbnb, Kayak, Uniqlo, Ultimate Guitar) in approximately 40 minutes of total collection time, including retries and quality checks. A separate pilot study collected 71 additional tasks in 10 hours. This is roughly 8 minutes per task versus the 17+ hours per task reported for handcrafted benchmarks like TheAgentCompany, representing a \textbf{120$\times$ reduction in marginal collection time}.
 
-We emphasize ``replace'' deliberately. Handcrafted replicas consume scarce human capital but are not required to achieve determinism, controlled variation, or breadth. Those properties can be achieved by capture-replay at scale: multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. The community's near-exclusive focus on replicas has slowed progress and narrowed evaluation; we argue the field should move past them.
+We emphasize ``replace'' deliberately. Handcrafted replicas consume scarce human capital but are not required to achieve determinism, controlled variation, or breadth. Those properties can be achieved by capture-replay at scale through multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. We have not yet demonstrated these techniques; our proof-of-concept validates single-trajectory capture and replay. But the economics favor building this infrastructure: even if adequate coverage requires 10 trajectories per task, that is still an order of magnitude cheaper than replica construction.
 
 The remainder of this paper develops this argument in detail:
 
@@ -259,6 +259,10 @@ Capture-replay inverts the environment construction process. Rather than buildin
     \item \textbf{Replay:} A replay engine serves the captured assets locally, allowing agents to interact with a frozen snapshot of the original session without contacting the live web.
 \end{enumerate}
 
+\paragraph{Relation to prior record-replay systems.} Record-replay is well-established in software engineering. Syscall-level tools like Mozilla rr \citep{ocallaghan2017rr} enable deterministic debugging of C/C++ programs by recording and replaying system calls, but operate below the HTTP layer and cannot mock web responses. HTTP-level tools such as Polly.js \citep{pollyjs2018}, VCR \citep{vcr2011}, and Nock \citep{nock2011} record network traffic for unit testing, using strict URL-and-method matching that fails when requests contain dynamic parameters (timestamps, session tokens, randomized IDs). Playwright's HAR replay \citep{playwrighthar2023} provides basic glob-pattern matching but lacks semantic understanding of request equivalence.
+
+TRACE extends these foundations with a \textbf{multi-tier matching system} designed for the non-determinism inherent in web agent evaluation: (1) exact URL matching when possible, (2) character-frequency similarity scoring for URLs with dynamic query parameters, and (3) LLM-based disambiguation when multiple candidates remain. Crucially, TRACE tracks which HAR entries have been consumed to prevent response reuse, which is essential for flows where the same URL is requested multiple times with different expected responses (e.g., login then authenticated requests). These additions address the gap between unit-test mocking, which assumes deterministic request sequences, and agent evaluation, where exploration creates novel request orderings.
+
 This approach offers several structural advantages:
 
 \subsection{Advantage 1: Scalability}
@@ -354,10 +358,15 @@ The 71-task pilot, despite its limitations, provides empirical grounding for the
 A position paper must engage seriously with opposing views. We address the most significant counterarguments to capture-replay:
 
 \subsection{``Capture-replay limits agent exploration''}
+\label{sec:exploration}
 
 \paragraph{The concern:} Captured environments are constrained to recorded trajectories; if an agent deviates, the replay may lack needed responses.
 
-\paragraph{Our response:} This is a data problem, not an environment-construction problem. \textbf{Multi-trajectory collection} captures multiple expert paths, providing recovery behaviors and alternatives. \textbf{Record-on-miss expansion} adds missing branches by capturing additional sessions when agents deviate. Exploration constraints are solvable with more capture, not handcrafted replicas.
+\paragraph{Our response:} This concern is legitimate, and we observe it in practice. When agents deviate from recorded trajectories, they encounter requests for which no response exists in the HAR file. This is a real limitation of single-trajectory capture.
+
+However, this is a \textbf{coverage problem, not a methodology problem}. The solution is more trajectories, not handcrafted replicas. \textbf{Multi-trajectory collection} captures multiple expert paths through the same task, providing recovery behaviors and alternatives. \textbf{Record-on-miss expansion} adds missing branches by capturing additional sessions when agents deviate. The question is not whether capture-replay can support agent exploration, but how many trajectories are needed.
+
+Crucially, the economics still favor capture-replay. Even if a task requires 10 trajectories to achieve adequate coverage, that represents roughly 80 minutes of collection time (10 $\times$ 8 min), compared to 17+ hours for a single handcrafted replica. The 120$\times$ cost advantage shrinks but remains substantial. We have not yet demonstrated multi-trajectory collection at scale; this is future work. But the economic argument for investing in capture infrastructure rather than replica construction holds regardless.
 
 \subsection{``Legal and ethical concerns around captured content''}
 
@@ -371,9 +380,13 @@ A position paper must engage seriously with opposing views. We address the most 
 
 \paragraph{The concern:} Six tasks doesn't demonstrate benchmark-scale collection or web diversity.
 
-\paragraph{Our response:} The six fully-replayable environments demonstrate \emph{replay quality}; our 71-task pilot study (Section~\ref{sec:pilot}) demonstrates \emph{collection scalability}. Together, they show that: (1) a single non-expert collector can gather 71 tasks in 10 hours; (2) the six refined environments replay deterministically on production sites; (3) challenging cases (authentication, payments, dynamic content) are included; (4) the 300-hour tooling investment built generalizable infrastructure, not task-specific code.
+\paragraph{Our response:} We separate two claims: \emph{collection scalability} and \emph{replay quality}. Our 71-task pilot study (Section~\ref{sec:pilot}) demonstrates collection scalability: a single non-expert collector gathered 71 tasks in 10 hours. The six fully-replayable environments demonstrate replay quality: a human following the original trajectory receives correct responses for every request, with LLM disambiguation resolving ambiguous matches deterministically.
 
-The pilot's captures require refactoring to match TRACE's current HAR-based format, but this illustrates rather than undermines our argument: when capture fails, recollection costs minutes. When replica construction fails, it costs weeks. Collection scalability and replay quality are now demonstrated; what remains is executing the collection at scale, which is an engineering effort, not a research question.
+Together, they show that: (1) capture scales to dozens of tasks with minimal effort; (2) the replay infrastructure correctly serves recorded responses when the trajectory is followed; (3) challenging cases (authentication, payments, dynamic content) are handled; (4) the 300-hour tooling investment built generalizable infrastructure, not task-specific code.
+
+\paragraph{What we have not demonstrated:} Agent evaluation at scale. As discussed in Section~\ref{sec:exploration}, agents that deviate from recorded trajectories encounter missing responses. Validating that capture-replay supports open-ended agent evaluation requires multi-trajectory collection, which we propose but have not yet implemented. The current demonstration validates infrastructure correctness via human replay; expanding coverage for agent evaluation is future work.
+
+The pilot's captures require refactoring to match TRACE's current HAR-based format, but this illustrates rather than undermines our argument: when capture fails, recollection costs minutes. When replica construction fails, it costs weeks.
 
 \subsection{``Handcrafted replicas are necessary for controlled studies''}
 
@@ -399,7 +412,9 @@ The pilot's captures require refactoring to match TRACE's current HAR-based form
 
 We acknowledge several technical limitations:
 
-\paragraph{LM-based matching non-determinism.} TRACE uses LLM disambiguation when multiple responses match a request. This is a proof-of-concept convenience; production systems should default to deterministic matching via URL canonicalization and strict tie-breakers.
+\paragraph{Single-trajectory coverage.} The current TRACE demonstration uses single-trajectory captures. We validated replay correctness via human traversal: a human following the recorded trajectory receives correct responses for all requests, with character-based matching and LLM disambiguation handling dynamic URL parameters. However, we have not validated agent evaluation, where deviation from recorded paths is common. Supporting agent exploration requires multi-trajectory collection or record-on-miss expansion, which we describe conceptually but have not implemented. This is the most significant gap between our proof-of-concept and production-ready infrastructure.
+
+\paragraph{LLM-based matching non-determinism.} TRACE uses LLM disambiguation when multiple responses match a request. This is a proof-of-concept convenience; production systems should default to deterministic matching via URL canonicalization and strict tie-breakers.
 
 \paragraph{Anti-automation resistance.} Websites deploy CAPTCHAs, bot detection, and fingerprinting. We found many high-value sites capturable with sufficient engineering, and replay is easier than capture (offline replay avoids triggering anti-bot measures). This is an ongoing arms race, but a practical obstacle rather than fundamental barrier.
 
@@ -652,6 +667,45 @@ TRACE includes a minimal evaluation runner demonstrating integration with browse
     \item \textbf{Checkpoint Evaluation:} Compare agent's trajectory against human checkpoints using semantic similarity. An LLM judge determines whether the agent reached equivalent states, allowing alternative valid paths.
     \item \textbf{Success Determination:} Binary success is assessed by comparing the agent's final state against the task's expected outcome (for action tasks) or answer (for information retrieval tasks).
 \end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Comparison with HTTP Record-Replay Tools}
+\label{app:replay-comparison}
+
+Table~\ref{tab:replay-comparison} compares TRACE's replay approach with existing HTTP record-replay tools. While these tools share the fundamental capture-replay paradigm, they differ significantly in request matching sophistication and intended use case.
+
+\begin{table*}[h]
+\caption{Comparison of HTTP record-replay tools. TRACE adds semantic matching capabilities designed for the non-determinism inherent in web agent evaluation.}
+\label{tab:replay-comparison}
+\vskip 0.1in
+\centering
+\small
+\begin{tabular}{@{}lllll@{}}
+\toprule
+\textbf{Tool} & \textbf{Matching Strategy} & \textbf{Dynamic Params} & \textbf{Reuse Prevention} & \textbf{Primary Use Case} \\
+\midrule
+Polly.js & Strict URL + method & Manual config & No & JS unit testing \\
+VCR & Configurable matchers & Regex patterns & Optional & Ruby integration tests \\
+Nock & URL + method + body & Regex/functions & One-shot default & Node.js mocking \\
+Playwright HAR & Strict or glob pattern & Basic wildcards & No & E2E test mocking \\
+\midrule
+\textbf{TRACE} & Multi-tier + LLM & Auto char-similarity & Yes (index tracking) & Web agent evaluation \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\paragraph{Key differences.}
+
+\textbf{Polly.js} \citep{pollyjs2018} uses adapters (fetch, XHR, Puppeteer) to intercept HTTP traffic and records to HAR format. Matching is strict by default: requests must match method, URL, headers, and body exactly. Dynamic parameters require manual configuration of ``matchRequestsBy'' rules to ignore specific fields. Designed for deterministic test suites where request sequences are predictable.
+
+\textbf{VCR} \citep{vcr2011} pioneered the ``cassette'' metaphor for recording HTTP interactions in Ruby. It offers configurable matchers (method, URI, host, path, body, headers) and supports regex patterns for dynamic content. However, matching remains deterministic; there is no semantic understanding of request equivalence. The ``record: :new\_episodes'' mode can extend cassettes but does not handle request reordering.
+
+\textbf{Nock} \citep{nock2011} provides HTTP mocking for Node.js with interceptors that match URL patterns (including regex) and request bodies. By default, interceptors are consumed after use (one-shot), which aligns with TRACE's index tracking but requires knowing the exact request sequence in advance. No fallback mechanism exists when strict matching fails.
+
+\textbf{Playwright HAR} \citep{playwrighthar2023} offers ``routeFromHAR'' for replaying captured traffic. The ``url'' option supports glob patterns (e.g., ``**/api/**'') but not semantic matching. The ``update'' mode re-records missing requests to live servers, which is useful for extending captures but not for offline-only evaluation. No mechanism exists for disambiguating between multiple matching entries.
+
+\textbf{TRACE} addresses the gap between these unit-test-oriented tools and the requirements of web agent evaluation. Agents explore unpredictably, generating request orderings that differ from the recorded trajectory. TRACE's character-frequency matching handles URL variations from timestamps and session tokens without manual configuration. LLM disambiguation resolves ambiguous cases where multiple HAR entries could satisfy a request. Index tracking ensures that requests to the same URL at different points in a session receive appropriate responses, which is critical for authentication flows where a URL may be requested before and after login with different expected responses.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
