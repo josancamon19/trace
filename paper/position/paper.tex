@@ -92,7 +92,7 @@
 \emph{``Web agents are hill climbing in the wrong direction.''}
 \end{quote}
 
-The past two years have witnessed remarkable progress in language-model agents for web and computer use. Systems built on frontier models can now navigate complex websites, fill forms, execute multi-step workflows, and retrieve information across diverse domains \citep{song2025bearcubs, wei2025browsecomp, murty2024nnetscape, maia2023gaia, zhang2023mind2web, li2025mind2web2, zhou2023webarena, garg2025real, xie2024osworld, xu2024theagentcompany, he2024webvoyager, drouin2024workarena}. Benchmarks such as Mind2Web, WebArena, WebVoyager, WorkArena, REAL, OSWorld, BEARCUBS, BrowseComp, and TheAgentCompany have provided standardized evaluation environments that enable reproducible comparisons and have driven rapid capability improvements.
+The past two years have witnessed remarkable progress in language-model agents for web and computer use. Systems built on frontier models can now navigate complex websites, fill forms, execute multi-step workflows, and retrieve information across diverse domains. Benchmarks such as Mind2Web \citep{zhang2023mind2web}, WebArena \citep{zhou2023webarena}, WebVoyager \citep{he2024webvoyager}, WorkArena \citep{drouin2024workarena}, REAL \citep{garg2025real}, OSWorld \citep{xie2024osworld}, BEARCUBS \citep{song2025bearcubs}, BrowseComp \citep{wei2025browsecomp}, and TheAgentCompany \citep{xu2024theagentcompany} have provided standardized evaluation environments that enable reproducible comparisons and have driven rapid capability improvements.
 
 Yet beneath this progress lies a troubling structural problem: \textbf{the environments we use to train and evaluate web agents bear little resemblance to the tasks that would make these agents economically valuable.} The majority of benchmark tasks fall into categories we characterize as ``deep research'' (trivia-style multi-hop questions that rarely require browser automation), ``information seeking'' (simple lookups that could often be answered by a search engine), or ``atomic execution'' (short, isolated actions like clicking a button or filling a single field). Long-horizon, multi-step workflows that mirror real paid work (booking complex travel itineraries, configuring enterprise SaaS tools, executing financial transactions, managing e-commerce operations) remain dramatically underrepresented. More importantly, most benchmarks are not collected from people doing paid work; they are task templates designed for evaluability rather than traces of real economic activity.
 
@@ -134,7 +134,7 @@ These costs are not only financial. They consume scarce research time that could
 
 This gap has not gone unnoticed by industry. A growing ecosystem of startups now builds browser environments for AI agent training \citep{mechanize, plato, agiinc, kaizen}. The business models vary: some host live environments, others deliver static datasets, and some offer both. What they share is a focus on creating replica websites and simulated workflows where AI agents can learn through reinforcement learning without triggering blocking mechanisms on real sites.
 
-The scale of investment is remarkable. According to \emph{The Information}, Anthropic has discussed spending more than \$1 billion on RL environments over the next year \citep{zeff2025silicon}. Data-labeling giants like Scale AI, Surge, and Mercor are pivoting resources toward environment construction, with Surge reportedly generating \$1.2 billion in revenue last year from AI lab contracts and recently spinning up a dedicated internal organization for RL environments. Mechanize, a startup focused exclusively on environments, offers software engineers \$500,000 salaries to build them, far exceeding typical data-labeling contractor rates. Andreessen Horowitz general partner Jennifer Li summarized the landscape: ``All the big AI labs are building RL environments in-house... but AI labs are also looking at third-party vendors that can create high-quality environments.''
+The scale of investment is remarkable. According to \emph{The Information}, Anthropic has discussed spending more than \$1 billion on RL environments over the next year \citep{zeff2025silicon}. Data-labeling giants like Scale AI, Surge, and Mercor are pivoting resources toward environment construction, with Surge reportedly generating \$1.2 billion in revenue last year from AI lab contracts and recently spinning up a dedicated internal organization for RL environments. Mechanize, a startup focused exclusively on environments, offers software engineers \$500,000 salaries to build them, far exceeding typical data-labeling contractor rates \citep{zeff2025silicon}.
 
 Leading AI labs treat these environments as core training infrastructure. \textbf{Browser environments have become a strategic asset: valuable, proprietary, and concentrated in the hands of well-funded organizations.}
 
@@ -152,14 +152,6 @@ To demonstrate feasibility, we developed TRACE (Trajectory Recording and Capture
 
 We emphasize ``replace'' deliberately. Handcrafted replicas consume scarce human capital but are not required to achieve determinism, controlled variation, or breadth. Those properties can be achieved by capture-replay at scale through multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. We have not yet demonstrated these techniques; our proof-of-concept validates single-trajectory capture and replay. But the economics favor building this infrastructure: even if adequate coverage requires 10 trajectories per task, that is still an order of magnitude cheaper than replica construction.
 
-The remainder of this paper develops this argument in detail:
-
-\begin{itemize}
-    \item \textbf{Section~\ref{sec:landscape}} presents a taxonomy of existing benchmarks, revealing systematic gaps in economically valuable task coverage and analyzing the cost structure of current approaches.
-    \item \textbf{Section~\ref{sec:case}} articulates the case for capture-replay, describing its potential advantages and presenting TRACE as a proof-of-concept implementation.
-    \item \textbf{Section~\ref{sec:counterarguments}} addresses alternative views and counterarguments, including concerns about exploration latitude, legal and ethical considerations, and technical feasibility.
-    \item \textbf{Section~\ref{sec:call}} presents a concrete call to action with specific recommendations for researchers, benchmark creators, and the broader community.
-\end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SECTION 2: CURRENT LANDSCAPE
@@ -199,7 +191,7 @@ TheAgentCompany & Execution & Medium & High & Realistic workflows but extraordin
 
 Several patterns emerge from this analysis:
 
-\paragraph{Pattern 1: The effort-value tradeoff.} Benchmarks that emphasize economically realistic tasks (TheAgentCompany, WorkArena, REAL) require dramatically more construction effort than those emphasizing information retrieval or synthetic reasoning (BrowseComp, GAIA). This is not coincidental. Realistic execution tasks require functional environments with state that actually changes, authentication flows that work, and evaluation criteria that verify real outcomes.
+\paragraph{Pattern 1: The effort-value tradeoff.} Benchmarks that emphasize economically realistic tasks (TheAgentCompany \citep{xu2024theagentcompany}, WorkArena \citep{drouin2024workarena}, REAL \citep{garg2025real}) require dramatically more construction effort than those emphasizing information retrieval or synthetic reasoning (BrowseComp \citep{wei2025browsecomp}, GAIA \citep{maia2023gaia}). This is not coincidental. Realistic execution tasks require functional environments with state that actually changes, authentication flows that work, and evaluation criteria that verify real outcomes.
 
 \paragraph{Pattern 2: Horizon compression.} Even benchmarks labeled as ``long-horizon'' often consist of relatively short interaction sequences when measured in actual steps. Mind2Web 2 explicitly analyzed this phenomenon, finding that most existing benchmarks concentrate on short-horizon tasks \citep{li2025mind2web2}. Long-horizon, multi-session workflows that characterize real knowledge work remain rare.
 
@@ -207,7 +199,7 @@ Several patterns emerge from this analysis:
 
 \paragraph{Pattern 4: Domain concentration.} Existing benchmarks heavily favor a small set of domains: e-commerce, content management, developer tools, and travel booking appear repeatedly, while vast categories of economically important web work (financial services, healthcare portals, government services, enterprise SaaS, professional services) remain largely uncovered.
 
-\paragraph{Pattern 5: The live-web evaluation problem.} Benchmarks that evaluate on live websites (Mind2Web, BrowseComp, BEARCUBS, WebVoyager) face continuous validity challenges as the web changes. Those that avoid this through replicas (WebArena, REAL) gain reproducibility but lose coverage and realism.
+\paragraph{Pattern 5: The live-web evaluation problem.} Benchmarks that evaluate on live websites (Mind2Web \citep{zhang2023mind2web}, BrowseComp \citep{wei2025browsecomp}, BEARCUBS \citep{song2025bearcubs}, WebVoyager \citep{he2024webvoyager}) face continuous validity challenges as the web changes. Those that avoid this through replicas (WebArena \citep{zhou2023webarena}, REAL \citep{garg2025real}) gain reproducibility but lose coverage and realism.
 
 \subsection{The Cost Structure of Environment Construction}
 
@@ -420,9 +412,9 @@ We call on the community to make four shifts:
 \section{Conclusion}
 \label{sec:conclusion}
 
-The web agent research community has made real progress, but handcrafted replicas are now the bottleneck. They are slow and expensive to build, lock us into small, synthetic task sets, and collapse evaluation to binary success. As task horizons stretch to hours and days, replica construction becomes untenable, and the ecosystem splits into a two-tier system where only well-funded labs and product companies can afford realistic environments.
+The web agent research community has made real progress, but handcrafted replicas are now the bottleneck. They are slow and expensive to build, lock us into small task sets, and create a two-tier ecosystem where only well-funded organizations can afford realistic environments.
 
-Capture-replay replaces that bottleneck with fast, economically grounded environments collected from real work. Deterministic replay provides reproducibility; multi-trajectory collection and branching, not yet demonstrated but economically feasible, can provide the coverage and analysis depth that replicas offer without the construction cost. The remaining challenges are about collection scale and responsible sharing, not environment engineering.
+Capture-replay offers a path forward: fast collection from real work, economic grounding by construction, and open sharing to democratize access. The remaining challenges are about collection scale and responsible sharing, not environment engineering.
 
 \textbf{Our position, restated:} The web agent research community should replace handcrafted replicas with capture-replay infrastructure. Stop building new replicas, invest in capture tooling and large-scale collection, and standardize sharing so long-horizon, economically valuable tasks become accessible to everyone. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
 
@@ -430,6 +422,7 @@ Capture-replay replaces that bottleneck with fast, economically grounded environ
 % REFERENCES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\newpage
 \bibliography{references}
 \bibliographystyle{icml2026}
 
