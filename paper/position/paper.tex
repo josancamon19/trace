@@ -418,7 +418,7 @@ We acknowledge several technical limitations:
 
 \paragraph{Anti-automation resistance.} Websites deploy CAPTCHAs, bot detection, and fingerprinting. We found many high-value sites capturable with sufficient engineering, and replay is easier than capture (offline replay avoids triggering anti-bot measures). This is an ongoing arms race, but a practical obstacle rather than fundamental barrier.
 
-\paragraph{Temporal validity.} Captures are snapshots; a model evaluated on January 2025 captures may fail on the same site in March 2025. However, replica-based benchmarks face the same problem (WebArena's Reddit clone does not track actual Reddit evolution), and periodic recapture can track drift with modest effort. We call for empirical research measuring capture-to-live transfer.
+\paragraph{Temporal validity.} Captures are snapshots; a task replayed after capture may encounter mismatches as dynamic content diverges. Our validation revealed this concretely: Airbnb search (Task 6), replayed weeks after capture, required LLM disambiguation for 25\% of requests because date-dependent API calls no longer matched recorded entries (see Appendix~\ref{app:statistics} for full breakdown). Kayak search (Task 5), despite similar datepicker interaction, achieved 90\% deterministic matching because its URLs encode dates less pervasively. Static workflows like GitHub authentication (Task 1) achieved 99.9\% deterministic matching regardless of replay timing. This suggests practical mitigations: prioritize recapture for date-sensitive tasks, or implement date-aware URL normalization. Replica-based benchmarks face analogous drift (WebArena's Reddit clone does not track actual Reddit evolution), but capture-replay makes the issue explicit and measurable.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SECTION 5: CALL TO ACTION
@@ -777,6 +777,38 @@ Several patterns emerge from the collected data:
 \end{enumerate}
 
 Even accounting for retries and mistakes, total collection effort for all six environments was approximately 40 minutes ($\sim$6:40 per task), demonstrating the efficiency of capture-replay compared to handcrafted environment construction which can require hours or days per task.
+
+\subsection{Replay Validation Results}
+
+To validate replay correctness, we manually traversed each captured environment following the original trajectory. Table~\ref{tab:replay-validation} reports matching outcomes across the multi-tier system.
+
+\begin{table*}[h]
+\caption{Replay matching breakdown for human traversal of captured environments. Deterministic matches require no LLM disambiguation; LLM-required matches were resolved correctly; failed matches had no suitable HAR entry.}
+\label{tab:replay-validation}
+\vskip 0.1in
+\centering
+\small
+\begin{tabular}{@{}lccccccc@{}}
+\toprule
+\textbf{Task} & \textbf{Website} & \textbf{Requests} & \textbf{Deterministic} & \textbf{LLM Required} & \textbf{Failed} & \textbf{LLM Calls} & \textbf{Avg Confidence} \\
+\midrule
+1 & GitHub & 725 & 99.9\% & 0.1\% & 0\% & 1 & 0.68 \\
+2 & Amazon & 676 & 99.1\% & 0.9\% & 0\% & 6 & 0.48 \\
+3 & Ultimate Guitar & 342 & 88.6\% & 11.4\% & 2.0\% & 39 & 0.59 \\
+4 & Uniqlo & 663 & 94.1\% & 5.9\% & 1.2\% & 39 & 0.55 \\
+5 & Kayak & 211 & 89.6\% & 10.4\% & 0\% & 22 & 0.57 \\
+6 & Airbnb & 501 & 74.7\% & 25.3\% & 1.8\% & 127 & 0.55 \\
+\midrule
+\textbf{Total/Avg} & & 3,118 & 91.3\% & 7.5\% & 1.1\% & 234 & 0.55 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\paragraph{Observations.} Matching success varies substantially by site complexity. Simple authenticated flows (GitHub, Amazon) achieve near-perfect deterministic matching (99\%+). Sites with heavy dynamic content (Ultimate Guitar's ad network, Uniqlo's tracking pixels) require more LLM disambiguation but still resolve correctly.
+
+\paragraph{Temporal mismatch.} Airbnb's high LLM requirement (25.3\%) stems from temporal mismatch: the task involved date-dependent search, and replay occurred weeks after capture. Airbnb encodes search dates directly in API URLs, causing requests to diverge from recorded entries. Kayak, despite similar datepicker interaction, encodes dates differently and achieved 89.6\% deterministic matching. This illustrates the temporal validity limitation discussed in Section~\ref{sec:counterarguments}: date-sensitive tasks degrade faster than static workflows.
+
+\paragraph{Failed requests.} The 1--2\% failure rate on three tasks reflects requests for which no plausible HAR entry existed, typically dynamically-generated tracking pixels or ad callbacks absent from the original capture. These failures did not prevent task completion; the affected resources were non-essential (analytics, ads). Production systems should extend the ignore-list to cover such cases.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

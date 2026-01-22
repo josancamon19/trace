@@ -431,7 +431,9 @@ class ReplayBundle:
             is_char_based,
         )
 
-        entry = await self._select_best_entry(request, candidates, method, metadata, is_char_based)
+        entry = await self._select_best_entry(
+            request, candidates, method, metadata, is_char_based
+        )
         if not entry:
             self._log.warning(
                 "No suitable HAR entry selected for: %s %s",
@@ -789,7 +791,9 @@ class ReplayBundle:
             # Approximate score percentage based on URL length
             url_len = len(request.url)
             if url_len > 0:
-                char_match_score_pct = (candidates[0].metadata.match_score / url_len) * 100
+                char_match_score_pct = (
+                    candidates[0].metadata.match_score / url_len
+                ) * 100
 
         if len(candidates) == 1:
             self._log.debug(
@@ -1040,14 +1044,18 @@ class ReplayBundle:
     def log_stats_summary(self) -> None:
         """Log a summary of replay statistics to the console and file."""
         # Add request flow debugging info
-        all_requests = getattr(self, '_all_requests_count', 0)
-        custom_handled = len(getattr(self, '_custom_handled_requests', set()))
+        all_requests = getattr(self, "_all_requests_count", 0)
+        custom_handled = len(getattr(self, "_custom_handled_requests", set()))
 
         self._log.info("")
         self._log.info("REQUEST FLOW:")
         self._log.info(f"  Total browser requests: {all_requests}")
-        self._log.info(f"  - Handled by route_from_har (exact HAR match): {all_requests - custom_handled}")
-        self._log.info(f"  - Handled by custom router (fallback/disambiguation): {custom_handled}")
+        self._log.info(
+            f"  - Handled by route_from_har (exact HAR match): {all_requests - custom_handled}"
+        )
+        self._log.info(
+            f"  - Handled by custom router (fallback/disambiguation): {custom_handled}"
+        )
 
         self.stats.log_summary(self._log)
 
