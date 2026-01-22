@@ -17,6 +17,7 @@ from environments.models import (
     HarEntry,
     parse_har_entry,
 )
+from environments.replay_stats import ReplayStats, MatchOutcome
 
 from scripts.postprocessing._4_determine_ignore import should_ignore_url
 import typer
@@ -133,6 +134,9 @@ class ReplayBundle:
         self._har_entries: List[HarEntry] = self._load_har_data()
         self._ignored_urls: List[str] = self._load_ignored_urls()  # ignored.json
         # self._ignored_urls: List[str] = []  # ignored.json
+
+        # Initialize replay statistics tracker
+        self.stats = ReplayStats(bundle_path=self.bundle_path)
 
         # TODO: is the index thing actually working? or is it fucking up smth
 
@@ -335,8 +339,6 @@ class ReplayBundle:
         allow_network_fallback: bool = False,
     ) -> None:
         """Configure an existing browser context with HAR replay and routing."""
-        # self._setup_har_logging(context)
-
         har_path = self.bundle_path / "recording.har"
         if not har_path.exists():
             raise FileNotFoundError(
@@ -345,14 +347,41 @@ class ReplayBundle:
 
         self._log.info("[HAR REPLAY] Using HAR replay from %s", har_path)
 
+        # Track requests to distinguish between route_from_har matches vs our custom handling
+        self._all_requests_count = 0
+        self._custom_handled_requests: set[str] = set()
+
+        def on_request(request: Request) -> None:
+            self._all_requests_count += 1
+
+        def on_request_finished(request: Request) -> None:
+            """Track requests that route_from_har handled (not our custom handler)."""
+            request_key = f"{request.method}:{request.url}"
+            if request_key not in self._custom_handled_requests:
+                # This request was handled by Playwright's route_from_har directly
+                if not self._should_ignore_url(request.url):
+                    self.stats.record_request(
+                        url=request.url,
+                        method=request.method,
+                        resource_type=request.resource_type,
+                        outcome=MatchOutcome.PLAYWRIGHT_HAR_MATCH,
+                    )
+
+        context.on("request", on_request)
+        context.on("requestfinished", on_request_finished)
+
         async def custom_route_handler(route: Route, request: Request) -> None:
+            # Mark this request as handled by our custom logic (before processing)
+            request_key = f"{request.method}:{request.url}"
+            self._custom_handled_requests.add(request_key)
             await self.handle_requests_with_no_exact_match(
                 route, request, allow_network_fallback
             )
 
         await context.set_offline(True)
+        # Register our custom handler first
         await context.route("**/*", custom_route_handler)
-        # TODO: github.com -> sign in -> github.com, during replay auto har redirects to github.com before signed in page, gg.
+        # route_from_har handles exact HAR matches (Playwright intercepts at lower level)
         await context.route_from_har(str(har_path), not_found="fallback", update=False)
         await context.set_offline(True)
 
@@ -366,6 +395,12 @@ class ReplayBundle:
         if self._should_ignore_url(request.url):
             self._log.debug(
                 "Ignoring URL (in ignore list): %s", self._get_shorter_url(request.url)
+            )
+            self.stats.record_request(
+                url=request.url,
+                method=request.method,
+                resource_type=request.resource_type,
+                outcome=MatchOutcome.IGNORED,
             )
             await route.abort()
             return
@@ -384,22 +419,31 @@ class ReplayBundle:
             self._log.debug(
                 "No candidates found for: %s", self._get_shorter_url(request.url)
             )
+            # Note: stats are recorded in _obtain_request_candidates for specific failure types
             return
 
-        candidates, method, metadata = data
+        candidates, method, metadata, is_char_based = data
         self._log.debug(
-            "Found %d candidates for %s %s",
+            "Found %d candidates for %s %s (char_based=%s)",
             len(candidates),
             method,
             self._get_shorter_url(request.url),
+            is_char_based,
         )
 
-        entry = await self._select_best_entry(request, candidates, method, metadata)
+        entry = await self._select_best_entry(request, candidates, method, metadata, is_char_based)
         if not entry:
             self._log.warning(
                 "No suitable HAR entry selected for: %s %s",
                 method,
                 self._get_shorter_url(request.url),
+            )
+            self.stats.record_request(
+                url=request.url,
+                method=method,
+                resource_type=request.resource_type,
+                outcome=MatchOutcome.ABORTED,
+                num_candidates=len(candidates),
             )
             await route.abort()
             return
@@ -413,7 +457,11 @@ class ReplayBundle:
         request: Request,
         route: Route,
         allow_network_fallback: bool = False,
-    ) -> tuple[List[CandidateEntry], str, str] | None:
+    ) -> tuple[List[CandidateEntry], str, dict, bool] | None:
+        """
+        Returns tuple of (candidates, method, metadata, is_char_based) or None if no candidates.
+        is_char_based indicates if the candidates were found via char-based fallback.
+        """
         method = request.method.upper()
         full_url = request.url
 
@@ -472,6 +520,12 @@ class ReplayBundle:
                     "Ignoring static asset (no exact match): %s",
                     self._get_shorter_url(full_url),
                 )
+                self.stats.record_request(
+                    url=request.url,
+                    method=method,
+                    resource_type=request.resource_type,
+                    outcome=MatchOutcome.NO_MATCH_STATIC,
+                )
                 await route.abort()
                 return
 
@@ -489,6 +543,12 @@ class ReplayBundle:
                     method,
                     self._get_shorter_url(full_url),
                 )
+                self.stats.record_request(
+                    url=request.url,
+                    method=method,
+                    resource_type=request.resource_type,
+                    outcome=MatchOutcome.NO_MATCH_FAILED,
+                )
                 await (route.fallback() if allow_network_fallback else route.abort())
                 return
             else:
@@ -498,8 +558,11 @@ class ReplayBundle:
                     method,
                     self._get_shorter_url(full_url),
                 )
+                # Mark as char-based for stats tracking
+                return candidate_entries, method, metadata, True
 
-        return candidate_entries, method, metadata
+        # Exact URL match (not char-based)
+        return candidate_entries, method, metadata, False
 
     def _fallback_candidates_char_based(
         self,
@@ -718,7 +781,16 @@ class ReplayBundle:
         candidates: list[CandidateEntry],
         method: str,
         metadata: dict[str, Any],
+        is_char_based: bool = False,
     ) -> HarEntry:
+        # Helper to get char match score percent from first candidate
+        char_match_score_pct = None
+        if is_char_based and candidates and candidates[0].metadata.match_score:
+            # Approximate score percentage based on URL length
+            url_len = len(request.url)
+            if url_len > 0:
+                char_match_score_pct = (candidates[0].metadata.match_score / url_len) * 100
+
         if len(candidates) == 1:
             self._log.debug(
                 "Single candidate found for %s %s, using directly",
@@ -726,6 +798,26 @@ class ReplayBundle:
                 self._get_shorter_url(request.url),
             )
             self._consumed_har_indices.add(candidates[0].idx)
+
+            # Track stats - single candidate
+            if is_char_based:
+                # Check if it was a perfect match
+                if candidates[0].metadata.matches_all:
+                    outcome = MatchOutcome.CHAR_MATCH_PERFECT
+                else:
+                    outcome = MatchOutcome.CHAR_MATCH_SINGLE
+            else:
+                outcome = MatchOutcome.EXACT_MATCH_SINGLE
+
+            self.stats.record_request(
+                url=request.url,
+                method=method,
+                resource_type=request.resource_type,
+                outcome=outcome,
+                num_candidates=1,
+                selected_index=0,
+                char_match_score_pct=char_match_score_pct,
+            )
             return candidates[0].entry
 
         shorter_url = self._get_shorter_url(request.url, normalize=True)
@@ -745,12 +837,28 @@ class ReplayBundle:
             if 0 <= cached_har_index < len(self._har_entries):
                 cached_entry = self._har_entries[cached_har_index]
                 # Verify it's in our candidates
-                for entry in candidates:
+                for idx, entry in enumerate(candidates):
                     if entry.entry is cached_entry or entry.entry == cached_entry:
                         self._log.info(
                             f"Using cached match for {method} {shorter_url} (HAR idx: {cached_har_index})"
                         )
                         self._consumed_har_indices.add(cached_har_index)
+
+                        # Track stats - cache hit
+                        outcome = (
+                            MatchOutcome.CHAR_MATCH_MULTI_CACHE
+                            if is_char_based
+                            else MatchOutcome.EXACT_MATCH_MULTI_CACHE
+                        )
+                        self.stats.record_request(
+                            url=request.url,
+                            method=method,
+                            resource_type=request.resource_type,
+                            outcome=outcome,
+                            num_candidates=len(candidates),
+                            selected_index=idx,
+                            char_match_score_pct=char_match_score_pct,
+                        )
                         return entry.entry
             self._log.debug(
                 "Cache miss (entry not in candidates) for %s %s",
@@ -789,7 +897,7 @@ class ReplayBundle:
                 post_data_preview,
             )
 
-        idx = await retrieve_best_request_match(
+        idx, confidence, reasoning = await retrieve_best_request_match(
             target_request=request,
             candidates=lm_match_candidates,
             metadata=metadata,
@@ -802,6 +910,34 @@ class ReplayBundle:
             method,
             shorter_url,
             self._get_shorter_url(selected_candidate.entry.request.url, max_length=60),
+        )
+
+        # Track stats - LM selection
+        outcome = (
+            MatchOutcome.CHAR_MATCH_MULTI_LM
+            if is_char_based
+            else MatchOutcome.EXACT_MATCH_MULTI_LM
+        )
+        self.stats.record_request(
+            url=request.url,
+            method=method,
+            resource_type=request.resource_type,
+            outcome=outcome,
+            num_candidates=len(candidates),
+            selected_index=idx,
+            lm_confidence=confidence,
+            char_match_score_pct=char_match_score_pct,
+        )
+
+        # Record LM match details
+        self.stats.record_lm_match(
+            request_url=request.url,
+            request_method=method,
+            num_candidates=len(candidates),
+            selected_index=idx,
+            confidence=confidence,
+            reasoning=reasoning,
+            match_type="char_based" if is_char_based else "exact",
         )
 
         # Save to cache
@@ -901,6 +1037,28 @@ class ReplayBundle:
         storage_state = storage_dir / "storage_state.json"
         return storage_state if storage_state.exists() else None
 
+    def log_stats_summary(self) -> None:
+        """Log a summary of replay statistics to the console and file."""
+        # Add request flow debugging info
+        all_requests = getattr(self, '_all_requests_count', 0)
+        custom_handled = len(getattr(self, '_custom_handled_requests', set()))
+
+        self._log.info("")
+        self._log.info("REQUEST FLOW:")
+        self._log.info(f"  Total browser requests: {all_requests}")
+        self._log.info(f"  - Handled by route_from_har (exact HAR match): {all_requests - custom_handled}")
+        self._log.info(f"  - Handled by custom router (fallback/disambiguation): {custom_handled}")
+
+        self.stats.log_summary(self._log)
+
+    def save_stats(self, output_path: Optional[Path] = None) -> Path:
+        """Save detailed replay statistics to a JSON file."""
+        return self.stats.save_to_file(output_path)
+
+    def get_stats_summary(self) -> Dict[str, Any]:
+        """Get a dictionary summary of replay statistics."""
+        return self.stats.get_summary()
+
     @staticmethod
     def _resolve_manifest(bundle_path: Path) -> Path:
         manifest = bundle_path / "manifest.json"
@@ -976,12 +1134,26 @@ async def _cli(
                 run_human_trajectory=run_human_trajectory,
             )
             await executor.run(page)
+
+            # Log and save replay statistics
+            bundle.log_stats_summary()
+            if verbose:
+                bundle.save_stats()
+
             if exit_on_completion:
                 await asyncio.sleep(1)
                 logger.info("Trajectory completed, exiting as requested")
                 return
 
-        await asyncio.Event().wait()
+        # If no trajectory, wait indefinitely (manual browsing mode)
+        # When done, log stats on keyboard interrupt
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            bundle.log_stats_summary()
+            if verbose:
+                bundle.save_stats()
+            raise
 
 
 app = typer.Typer(help="Replay a captured browser bundle offline")

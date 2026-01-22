@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
-from capture.sandbox import SandboxEnvironment
+from environments.environment import SandboxEnvironment
 from kernel import Kernel
 from eval.harness.definitions import HarnessRunConfig, SessionResources
 

@@ -75,7 +75,13 @@ async def retrieve_best_request_match(
     target_request: Request,
     candidates: list[dict[str, Any]],
     metadata: dict[str, Any] = None,
-) -> int:
+) -> tuple[int, float, str]:
+    """
+    Retrieve the best matching HAR entry for a request using LLM.
+
+    Returns:
+        Tuple of (selected_index, confidence, reasoning)
+    """
     if not candidates:
         raise ValueError("candidates list cannot be empty")
 
@@ -97,6 +103,9 @@ async def retrieve_best_request_match(
         )
 
         selected_idx = result.selected_match
+        confidence = result.confidence
+        reasoning = result.reasoning
+
         if selected_idx != 0:
             logger.info(
                 "Relevant LM match response details: https://platform.openai.com/logs/%s",
@@ -110,13 +119,13 @@ async def retrieve_best_request_match(
                 selected_idx,
                 len(candidates),
             )
-            return 0
+            return 0, confidence, reasoning
 
-        return selected_idx
+        return selected_idx, confidence, reasoning
 
     except Exception as e:
         # For errors, log and fall back
         logger.error(
             "Error calling OpenAI API: %s. Falling back to first candidate.", e
         )
-        return 0
+        return 0, 0.0, f"Error: {e}"

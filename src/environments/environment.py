@@ -4,7 +4,7 @@ import json
 import logging
 import socket
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from playwright.async_api import Browser as PlaywrightBrowser
 from playwright.async_api import BrowserContext, BrowserType, async_playwright
@@ -203,6 +203,12 @@ class SandboxEnvironment:
         )
 
     async def close(self) -> None:
+        # Log and save replay stats before closing
+        try:
+            self.bundle.log_stats_summary()
+        except Exception as exc:
+            logger.debug("[SANDBOX] Failed to log stats summary: %s", exc)
+
         try:
             await self._browser.close()
         except Exception:
@@ -216,3 +222,11 @@ class SandboxEnvironment:
         self._playwright = None
         self._contexts.clear()
         self._ws_endpoint = None
+
+    def get_stats_summary(self) -> Dict[str, Any]:
+        """Get replay statistics summary."""
+        return self.bundle.get_stats_summary()
+
+    def save_stats(self, output_path: Optional[Path] = None) -> Path:
+        """Save detailed replay statistics to a JSON file."""
+        return self.bundle.save_stats(output_path)
