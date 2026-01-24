@@ -41,7 +41,7 @@
 \graphicspath{{../figures/}{figures/}}
 
 % Short running title (must be in preamble, before \begin{document})
-\icmltitlerunning{Position: Prioritize Capture-Replay Over Handcrafted Replicas}
+\icmltitlerunning{Position:Prioritize Capture-Replay Over Handcrafted Replicas}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DOCUMENT START
@@ -52,7 +52,7 @@
 \sloppy
 
 \twocolumn[
-\icmltitle{Position: Web Agent Research Should Prioritize Capture-Replay Infrastructure\\Over Handcrafted Replicas}
+\icmltitle{Position: Web Agent Research Should Prioritize Capture-Replay\\Over Handcrafted Replicas}
 
 % For submission (anonymous)
 \icmlsetsymbol{equal}{*}
@@ -228,13 +228,7 @@ We also see this dynamic inside product companies building agents for their own 
 
 These training environments are typically proprietary and contract-bound, making it hard for open-source and academic research to access or reproduce the training conditions that drive frontier results.
 
-\textbf{The result is a two-tier system:} well-funded labs train agents on high-quality, realistic environments that they cannot share, while the academic community and open-source LM companies work primarily with the limited set of open benchmarks. This concentration raises concerns about:
-
-\begin{enumerate}
-    \item \textbf{Reproducibility:} If state-of-the-art results depend on proprietary training environments, the research community cannot fully verify or build upon them.
-    \item \textbf{Diversity:} Concentrated environment access may lead to agents that excel on specific task distributions while failing on the broader diversity of real-world needs.
-    \item \textbf{Safety:} Independent safety research requires access to the same environments used for capability development; concentration of access constrains this.
-\end{enumerate}
+\textbf{The result is a two-tier system:} well-funded labs train agents on high-quality, realistic environments that they cannot share, while the academic community and open-source LM companies work primarily with the limited set of open benchmarks. This concentration raises concerns across multiple dimensions. First, \emph{reproducibility} suffers: if state-of-the-art results depend on proprietary training environments, the research community cannot fully verify or build upon them. Second, \emph{diversity} may narrow: concentrated environment access can lead to agents that excel on specific task distributions while failing on the broader diversity of real-world needs. Third, \emph{safety research} is constrained: independent safety research requires access to the same environments used for capability development, and concentration of access limits this critical work.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SECTION 3: THE CASE FOR CAPTURE-REPLAY
@@ -245,13 +239,7 @@ These training environments are typically proprietary and contract-bound, making
 
 \subsection{Core Concept}
 
-Capture-replay inverts the environment construction process. Rather than building a website replica and then defining tasks on it, we:
-
-\begin{enumerate}
-    \item \textbf{Capture:} An expert performs a real task on a live website while an instrumented browser records everything: DOM states, network traffic, user interactions, screenshots, and video.
-    \item \textbf{Process:} A post-processing pipeline transforms raw captures into clean, reusable artifacts: high-level action sequences (a standardized tool-call DSL), extracted credentials (for secure handling), semantic checkpoints (for partial-credit evaluation), and filtered network logs (removing analytics and non-essential traffic).
-    \item \textbf{Replay:} A replay engine serves the captured assets locally, allowing agents to interact with a frozen snapshot of the original session without contacting the live web.
-\end{enumerate}
+Capture-replay inverts the environment construction process. Rather than building a website replica and then defining tasks on it, we follow a three-stage pipeline. In the \textbf{capture} stage, an expert performs a real task on a live website while an instrumented browser records everything: DOM states, network traffic, user interactions, screenshots, and video. Next, the \textbf{processing} stage transforms raw captures into clean, reusable artifacts: high-level action sequences (a standardized tool-call DSL), extracted credentials (for secure handling), semantic checkpoints (for partial-credit evaluation), and filtered network logs (removing analytics and non-essential traffic). Finally, in the \textbf{replay} stage, a replay engine serves the captured assets locally, allowing agents to interact with a frozen snapshot of the original session without contacting the live web.
 
 \paragraph{Relation to prior record-replay systems.} Record-replay is well-established in software engineering. Syscall-level tools like Mozilla rr \citep{ocallaghan2017rr} enable deterministic debugging of C/C++ programs by recording and replaying system calls, but operate below the HTTP layer and cannot mock web responses. HTTP-level tools such as Polly.js \citep{pollyjs2018}, VCR \citep{vcr2011}, and Nock \citep{nock2011} record network traffic for unit testing, using strict URL-and-method matching that fails when requests contain dynamic parameters (timestamps, session tokens, randomized IDs). Playwright's HAR replay \citep{playwrighthar2023} provides basic glob-pattern matching but lacks semantic understanding of request equivalence.
 
@@ -356,7 +344,7 @@ This is a genuine limitation of the capture-replay paradigm that we do not claim
 
 \paragraph{Our response:} We separate two claims: \emph{collection scalability} and \emph{replay quality}. Our 71-task pilot study (Section~\ref{sec:pilot}) demonstrates collection scalability: a single non-expert collector gathered 71 tasks in 10 hours. The six fully-replayable environments demonstrate replay quality: a human following the original trajectory receives correct responses for every request, with LLM disambiguation resolving ambiguous matches deterministically.
 
-Together, they show that: (1) capture scales to dozens of tasks with minimal effort; (2) the replay infrastructure correctly serves recorded responses when the trajectory is followed; (3) challenging cases (authentication, payments, dynamic content) are handled; (4) the 300-hour tooling investment built generalizable infrastructure, not task-specific code.
+Together, these results demonstrate that capture scales to dozens of tasks with minimal effort, that the replay infrastructure correctly serves recorded responses when the trajectory is followed, that challenging cases including authentication, payments, and dynamic content are handled, and that the 300-hour tooling investment built generalizable infrastructure rather than task-specific code.
 
 \paragraph{What we have not demonstrated:} Agent evaluation at scale. As discussed in Section~\ref{sec:exploration}, agents that deviate from recorded trajectories encounter missing responses. Validating that capture-replay supports open-ended agent evaluation requires multi-trajectory collection, which we propose but have not yet implemented. The current demonstration validates infrastructure correctness via human replay; expanding coverage for agent evaluation is future work.
 
@@ -386,7 +374,7 @@ The pilot's captures require refactoring to match TRACE's current HAR-based form
 
 We acknowledge several technical limitations:
 
-\paragraph{Single-trajectory coverage.} The current TRACE demonstration uses single-trajectory captures, validated via human traversal. We have not validated agent evaluation, where deviation from recorded paths causes missing responses. Supporting agent exploration requires multi-trajectory collection, which we propose but have not implemented—the most significant gap between our proof-of-concept and production-ready infrastructure.
+\paragraph{Single-trajectory coverage.} The current TRACE demonstration uses single-trajectory captures, validated via human traversal. We have not validated agent evaluation, where deviation from recorded paths causes missing responses. Supporting agent exploration requires multi-trajectory collection, which we propose but have not implemented. This is the most significant gap between our proof-of-concept and production-ready infrastructure.
 
 \paragraph{LLM-based matching non-determinism.} TRACE uses LLM disambiguation when multiple responses match a request. This is a proof-of-concept convenience; production systems should default to deterministic matching via URL canonicalization and strict tie-breakers.
 
