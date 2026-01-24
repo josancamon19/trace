@@ -41,7 +41,7 @@
 \graphicspath{{../figures/}{figures/}}
 
 % Short running title (must be in preamble, before \begin{document})
-\icmltitlerunning{Position: Capture-Replay Infrastructure, Not Handcrafted Replicas}
+\icmltitlerunning{Position: Prioritize Capture-Replay Over Handcrafted Replicas}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DOCUMENT START
@@ -52,7 +52,7 @@
 \sloppy
 
 \twocolumn[
-\icmltitle{Position: Web Agent Research Needs Capture-Replay Infrastructure,\\Not Handcrafted Replicas}
+\icmltitle{Position: Web Agent Research Should Prioritize Capture-Replay Infrastructure\\Over Handcrafted Replicas}
 
 % For submission (anonymous)
 \icmlsetsymbol{equal}{*}
@@ -78,7 +78,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{abstract}
-\textbf{This is a position paper.} Building realistic web agent environments is extraordinarily expensive; TheAgentCompany required 3,000 person-hours for 175 tasks. This cost barrier has spawned a proprietary ecosystem where well-funded labs train on environments they cannot share, splitting the field into haves and have-nots. We argue this trajectory is unsustainable: the community should replace handcrafted website replicas with capture-replay infrastructure. A single expert demonstration, recorded on a live website, can produce a complete offline environment in minutes. We present TRACE, a proof-of-concept that captures production sites including authenticated flows, and validate scalability: 6 fully replayable environments captured in 40 minutes ($\sim$7 min/task), plus 71 tasks collected in a pilot study, representing a \textbf{120$\times$ reduction} in marginal time compared to replica construction. Capture-replay has real limitations; agents that deviate from recorded trajectories encounter missing responses. But these are coverage problems solvable by collecting more trajectories, not by building more replicas. We call on the community to stop investing in handcrafted environments and redirect that effort toward capture tooling, large-scale collection, and open sharing. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
+\textbf{This is a position paper.} Building realistic web agent environments is extraordinarily expensive; TheAgentCompany required 3,000 person-hours for 175 tasks. This cost barrier has spawned a proprietary ecosystem where well-funded labs train on environments they cannot share, splitting the field into haves and have-nots. We argue this trajectory is unsustainable: the community should prioritize capture-replay infrastructure over handcrafted website replicas. A single expert demonstration, recorded on a live website, can produce a complete offline environment in minutes. We present TRACE, a proof-of-concept that captures production sites including authenticated flows, and validate scalability: 6 fully replayable environments captured in 40 minutes ($\sim$7 min/task), plus 71 tasks collected in a pilot study, representing a \textbf{120$\times$ reduction} in marginal time compared to replica construction. Capture-replay has real limitations; agents that deviate from recorded trajectories encounter missing responses, and human demonstrations cannot anticipate every valid agent strategy. But these coverage gaps are explicit and measurable (agents hit missing responses), whereas replica fidelity gaps (where simulated behavior diverges from production) may go undetected. We call on the community to shift investment toward capture tooling, large-scale collection, and open sharing. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
 \end{abstract}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -98,7 +98,7 @@ Yet beneath this progress lies a troubling structural problem: \textbf{the envir
 
 This is not an oversight. It reflects a fundamental constraint: \textbf{handcrafted environments are extraordinarily expensive to build.}
 
-\paragraph{Our position:} The web agent research community should replace handcrafted replicas with capture-replay infrastructure. Rather than building website replicas, we should record experts completing tasks on live websites and transform those recordings into reusable, offline environments. A single expert demonstration can produce a complete environment in minutes, compared to the hours or days required to handcraft a replica. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
+\paragraph{Our position:} The web agent research community should prioritize capture-replay infrastructure over handcrafted replicas. Rather than continuing to invest primarily in website replicas, we should record experts completing tasks on live websites and transform those recordings into reusable, offline environments. A single expert demonstration can produce a complete environment in minutes, compared to the hours or days required to handcraft a replica. Replicas retain value for controlled ablations, but the marginal return on capture-replay investment far exceeds that of additional replica construction.
 
 Consider the costs documented in recent benchmark papers:
 
@@ -149,9 +149,9 @@ The core idea is simple: rather than handcrafting website replicas, we record an
 
 Capture-replay is not a new concept in software engineering. Record-and-replay debugging, network mocking, and browser automation testing have used similar techniques for decades. But its application to web agent research has been surprisingly limited. We argue this represents a significant missed opportunity.
 
-To demonstrate feasibility, we developed TRACE (Trajectory Recording and Capture Environments), an open-source capture-replay pipeline. Building robust tooling required approximately 300 hours of engineering effort: analyzing hundreds of captured sessions, developing URL canonicalization heuristics, and iterating on replay matching. But once built, the tooling amortizes: we captured six diverse environments (GitHub, Amazon, Airbnb, Kayak, Uniqlo, Ultimate Guitar) in approximately 40 minutes of total collection time, including retries and quality checks. A separate pilot study collected 71 additional tasks in 10 hours. This is roughly 7--8 minutes per task versus the 17+ hours per task reported for handcrafted benchmarks like TheAgentCompany, representing a \textbf{120$\times$ reduction in marginal collection time}.
+To demonstrate feasibility, we developed TRACE (Trajectory Recording and Capture Environments), an open-source capture-replay pipeline. Building robust tooling required approximately 300 hours of engineering effort: analyzing hundreds of captured sessions, developing URL canonicalization heuristics, and iterating on replay matching. But once built, the tooling amortizes: we captured six diverse environments (GitHub, Amazon, Airbnb, Kayak, Uniqlo, Ultimate Guitar) in approximately 40 minutes of total collection time, including retries and quality checks. A separate pilot study collected 71 additional tasks in 10 hours. This is roughly 7 to 8 minutes per task versus the 17+ hours per task reported for handcrafted benchmarks like TheAgentCompany, representing a \textbf{120$\times$ reduction in marginal collection time}.
 
-We emphasize ``replace'' deliberately. Handcrafted replicas consume scarce human capital but are not required to achieve determinism, controlled variation, or breadth. Those properties can be achieved by capture-replay at scale through multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. We have not yet demonstrated these techniques; our proof-of-concept validates single-trajectory capture and replay. But the economics favor building this infrastructure: even if adequate coverage requires 10 trajectories per task, that is still an order of magnitude cheaper than replica construction.
+We emphasize ``prioritize'' deliberately. Handcrafted replicas have absorbed enormous research effort while capture-replay infrastructure remains underexplored. Replicas offer value for controlled ablations where researchers need to systematically vary specific elements, but determinism, breadth, and realistic task coverage can also be achieved by capture-replay at scale through multi-trajectory collection, record-on-miss expansion, and post-processing that enables controlled perturbations. We have not yet demonstrated these techniques; our proof-of-concept validates single-trajectory capture and replay. But the economics favor building this infrastructure: even if adequate coverage requires 10 trajectories per task, that is still an order of magnitude cheaper than replica construction.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -334,9 +334,13 @@ A position paper must engage seriously with opposing views. We address the most 
 
 \paragraph{Our response:} This concern is legitimate, and we observe it in practice. When agents deviate from recorded trajectories, they encounter requests for which no response exists in the HAR file. This is a real limitation of single-trajectory capture.
 
-However, this is a \textbf{coverage problem, not a methodology problem}. The solution is more trajectories, not handcrafted replicas. \textbf{Multi-trajectory collection} captures multiple expert paths through the same task, providing recovery behaviors and alternatives. \textbf{Record-on-miss expansion} adds missing branches by capturing additional sessions when agents deviate. The question is not whether capture-replay can support agent exploration, but how many trajectories are needed.
+For many deviation types, this is a \textbf{coverage problem addressable through data collection}. \textbf{Multi-trajectory collection} captures multiple expert paths through the same task, providing recovery behaviors and alternatives. \textbf{Record-on-miss expansion} adds missing branches by capturing additional sessions when agents deviate. These techniques can broaden coverage along dimensions where humans naturally vary: different filter orderings, alternative navigation paths, varied form-filling sequences.
 
-Crucially, the economics still favor capture-replay. Even if a task requires 10 trajectories to achieve adequate coverage, that represents roughly 70 minutes of collection time (10 $\times$ 7 min), compared to 17+ hours for a single handcrafted replica. The 120$\times$ cost advantage shrinks but remains substantial. We have not yet demonstrated multi-trajectory collection at scale; this is future work. But the economic argument for investing in capture infrastructure rather than replica construction holds regardless.
+\paragraph{A deeper limitation.} We acknowledge that the concern extends beyond coverage quantity. Human demonstrations inherently anchor environments around human-legible solution paths. But increasingly capable agents may discover valid strategies that humans do not naturally use: exhaustively enumerating DOM elements, probing URLs directly, exploiting implicit page structure, or pursuing action sequences that seem inefficient to human operators but reliably achieve correct outcomes. These behaviors may be effective yet absent from any reasonable number of human trajectories. A capture-based environment risks penalizing or failing such behaviors simply because they were never demonstrated.
+
+This is a genuine limitation of the capture-replay paradigm that we do not claim to solve. Multi-trajectory collection cannot anticipate fundamentally non-human strategies. However, we argue capture-replay still represents progress: coverage gaps become \emph{measurable} (how often do agents hit missing responses? which request patterns fail?) rather than \emph{invisible} (do replicas faithfully model production site behavior? how would we know?). Replicas face their own fidelity gaps: they are approximations of real sites, and the approximation errors are rarely characterized. Capture-replay surfaces its failure modes explicitly.
+
+\paragraph{Economic argument.} Crucially, the economics still favor capture-replay even accounting for this limitation. If a task requires 10 trajectories to achieve adequate coverage for human-like strategies, that represents roughly 70 minutes of collection time (10 $\times$ 7 min), compared to 17+ hours for a single handcrafted replica. The 120$\times$ cost advantage shrinks but remains substantial. For strategies that no human trajectory captures, both approaches face challenges, but capture-replay at least makes the gap visible. We have not yet demonstrated multi-trajectory collection at scale; this is future work. But the economic argument for investing in capture infrastructure rather than replica construction holds regardless.
 
 \subsection{``Legal and ethical concerns around captured content''}
 
@@ -399,7 +403,7 @@ We acknowledge several technical limitations:
 
 We call on the community to make four shifts:
 
-\textbf{Stop building replicas; invest in capture tooling.} Every hour spent handcrafting a website replica is an hour not spent on agent research. Redirect engineering effort toward capture-replay infrastructure that can produce environments 120$\times$ faster. Research groups with domain expertise (finance, healthcare, enterprise SaaS) should capture environments in their areas rather than waiting for generalist benchmarks.
+\textbf{Prioritize capture tooling over replica construction.} The marginal return on capture-replay investment far exceeds that of additional handcrafted replicas. Redirect engineering effort toward capture-replay infrastructure that can produce environments 120$\times$ faster. Research groups with domain expertise (finance, healthcare, enterprise SaaS) should capture environments in their areas rather than waiting for generalist benchmarks. Replicas retain value for controlled ablations, but should not be the default methodology.
 
 \textbf{Document construction costs transparently.} TheAgentCompany's disclosure of 3,000 person-hours set a valuable precedent. All benchmark papers should report environment construction effort to enable informed methodology comparisons.
 
@@ -418,7 +422,15 @@ The web agent research community has made real progress, but handcrafted replica
 
 Capture-replay offers a path forward: fast collection from real work, economic grounding by construction, and open sharing to democratize access. The remaining challenges are about collection scale and responsible sharing, not environment engineering.
 
-\textbf{Our position, restated:} The web agent research community should replace handcrafted replicas with capture-replay infrastructure. Stop building new replicas, invest in capture tooling and large-scale collection, and standardize sharing so long-horizon, economically valuable tasks become accessible to everyone. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
+\textbf{Our position, restated:} The web agent research community should prioritize capture-replay infrastructure over handcrafted replicas. Shift investment toward capture tooling and large-scale collection, and standardize sharing so long-horizon, economically valuable tasks become accessible to everyone. Capture-replay has real limitations (human trajectories cannot anticipate every valid agent strategy), but it makes coverage gaps measurable and addressable. The tools exist; the decision is whether we continue paying the replica tax or move the field forward.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ACKNOWLEDGEMENTS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section*{Acknowledgements}
+
+[Redacted for anonymous review.]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % REFERENCES
@@ -749,7 +761,7 @@ To validate replay correctness, we manually traversed each captured environment 
 
 \paragraph{Temporal mismatch.} Airbnb's high LLM requirement (25.3\%) stems from temporal mismatch: the task involved date-dependent search, and replay occurred weeks after capture. Airbnb encodes search dates directly in API URLs, causing requests to diverge from recorded entries. Kayak, despite similar datepicker interaction, encodes dates differently and achieved 89.6\% deterministic matching. This illustrates the temporal validity limitation discussed in Section~\ref{sec:counterarguments}: date-sensitive tasks degrade faster than static workflows.
 
-\paragraph{Failed requests.} The 1--2\% failure rate on three tasks reflects requests for which no plausible HAR entry existed, typically dynamically-generated tracking pixels or ad callbacks absent from the original capture. These failures did not prevent task completion; the affected resources were non-essential (analytics, ads). Production systems should extend the ignore-list to cover such cases.
+\paragraph{Failed requests.} The 1 to 2\% failure rate on three tasks reflects requests for which no plausible HAR entry existed, typically dynamically-generated tracking pixels or ad callbacks absent from the original capture. These failures did not prevent task completion; the affected resources were non-essential (analytics, ads). Production systems should extend the ignore-list to cover such cases.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
